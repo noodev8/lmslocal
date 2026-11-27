@@ -8,7 +8,7 @@ Purpose: The host sets up a Matchday Party room for one evening (docs/matchday-p
 =======================================================================================================================================
 Request Payload:
 {
-  "rounds": 2                          // integer, required - 1, 2 or 3
+  "rounds": 2                          // integer, required - 2, 3 or 4
 }
 
 Success Response (ALWAYS HTTP 200):
@@ -29,7 +29,7 @@ Error Response (ALWAYS HTTP 200):
 Return Codes:
 "SUCCESS"
 "MISSING_FIELDS"   - rounds not given
-"INVALID_ROUNDS"   - rounds is not 1, 2 or 3
+"INVALID_ROUNDS"   - rounds is not 2, 3 or 4
 "UNAUTHORIZED"     - invalid or missing JWT token
 "FORBIDDEN"        - this user may not host (preview: PARTY_PREVIEW_HOST_IDS in services/mdParty.js)
 "SERVER_ERROR"     - unexpected server error
@@ -62,7 +62,7 @@ router.post('/', verifyToken, async (req, res) => {
       return res.json({ return_code: 'MISSING_FIELDS', message: 'rounds is required' });
     }
     if (!party.ROUND_OPTIONS.includes(Number(rounds))) {
-      return res.json({ return_code: 'INVALID_ROUNDS', message: 'A game is 1, 2 or 3 rounds' });
+      return res.json({ return_code: 'INVALID_ROUNDS', message: 'A game is 2, 3 or 4 rounds' });
     }
     if (!party.canHostParty(userId)) {
       return res.json({ return_code: 'FORBIDDEN', message: 'Matchday Party is not open yet' });

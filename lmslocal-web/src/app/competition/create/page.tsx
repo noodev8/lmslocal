@@ -332,8 +332,9 @@ export default function CreateCompetitionPage() {
                 >
                   <p className="font-display text-2xl uppercase tracking-[0.03em]">Matchday Party</p>
                   <p className="mt-2 text-[15px] leading-relaxed text-ink-fade">
-                    One evening, in one room. Predict made-up Premier League matches on your phones
-                    and watch the results come in. Not a competition: no invites, nothing to pay.
+                    A quick game in one sitting, together or apart. Predict made-up Premier League
+                    matches on your phones and watch the results come in. Players don&apos;t need an
+                    LMSLocal account or to register. Not a competition: nothing to set up, nothing to pay.
                   </p>
                   <p className={`${LABEL} mt-3 text-ink`}>Preview &middot; start a game &rarr;</p>
                 </Link>

@@ -1,7 +1,8 @@
 'use client';
 
 /*
-  The reveal on the TV, one match at a time, with the players' league moving beside it
+  The reveal on the TV - and, since 2026-11-27, on every phone too, identically (`onPhone` only
+  sizes it down and keeps it silent) - one match at a time, with the players' league moving beside it
   (docs/matchday-party.md §6).
 
   SHARED AND NEUTRAL: the screen the whole room watches. Two columns:
@@ -19,9 +20,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { LABEL } from '@/lib/design';
+import MatchBoard from './MatchBoard';
 import type { PartyFixture, PartyPlayersRow } from '@/lib/api';
 import {
-  LEAGUE_MOVES_ON_GOALS, goalMoment, provisionalPoints, liveStandings, revealedCount, scoreAt, useRevealPosition, useTeleprinterSound, type Crowd,
+  LEAGUE_MOVES_ON_GOALS, goalMoment, liveStandings, revealedCount, scoreAt, useRevealPosition, useTeleprinterSound, type Crowd,
 } from '@/lib/mdpartyReveal';
 
 const SOUND_KEY = 'mdparty_sound';
@@ -35,6 +37,7 @@ export default function TvReveal({
   table,
   lockedAt,
   offsetMs,
+  onPhone = false,
 }: {
   fixtures: PartyFixture[];
   crowd: Crowd[] | null;
@@ -43,22 +46,16 @@ export default function TvReveal({
   table: PartyPlayersRow[];
   lockedAt: string | null;
   offsetMs: number;
+  /** The same screen on a phone (2026-11-27): smaller scoreboard, and silent - sound is the TV's. */
+  onPhone?: boolean;
 }) {
   const pos = useRevealPosition(lockedAt, offsetMs, fixtures.length, false, 50);
   const [sound, setSound] = useState(true);
   useEffect(() => { setSound(localStorage.getItem(SOUND_KEY) !== 'off'); }, []);
-  const { chime } = useTeleprinterSound(sound);
+  const { chime } = useTeleprinterSound(sound && !onPhone);
 
   const nameOf = (id: number) => players.find((p) => p.id === id)?.name ?? '';
   const match = fixtures[pos.index];
-  const here = crowd?.find((c) => c.fixture_id === match?.id);
-  const bankers = new Set(here?.bankers ?? []);
-  // Names stay plain. Bankers get a tag of their own on their team's row: a star mixed into the
-  // names was not always read as a banker (2026-11-25).
-  const homeNames = (here?.home ?? []).map(nameOf).filter(Boolean);
-  const awayNames = (here?.away ?? []).map(nameOf).filter(Boolean);
-  const bankerNames = (side: 'home' | 'away') =>
-    ((side === 'home' ? here?.home : here?.away) ?? []).filter((id) => bankers.has(id)).map(nameOf).filter(Boolean);
 
 
 
@@ -105,9 +102,9 @@ export default function TvReveal({
               ? `${fixtures.length} matches, one at a time`
               : pos.phase === 'done' ? 'All the results are in' : `Match ${pos.index + 1} of ${fixtures.length}`}
           </p>
-          <button type="button" onClick={toggleSound} className={`${LABEL} text-ink-fade underline decoration-dotted underline-offset-4 hover:text-ink`}>
+          {!onPhone && <button type="button" onClick={toggleSound} className={`${LABEL} text-ink-fade underline decoration-dotted underline-offset-4 hover:text-ink`}>
             Sound {sound ? 'on' : 'off'}
-          </button>
+          </button>}
         </div>
 
         {pos.phase === 'countdown' && (
@@ -115,68 +112,9 @@ export default function TvReveal({
         )}
 
         {match && pos.phase !== 'countdown' && pos.phase !== 'done' && (
-          <section className="mt-4 border border-ink/30 bg-stock-lit px-[2.5vw] py-[4vh] shadow-[4px_4px_0_0_rgba(28,38,32,0.16)]">
-            <p className="text-center font-data text-[clamp(1.4rem,2.6vw,2.2rem)] text-ink-fade">
-              {pos.phase === 'intro' ? 'Kick-off' : pos.phase === 'halftime' ? 'Half time' : pos.phase === 'result' ? 'Full time' : `${pos.minute}'`}
-            </p>
-
-            {/* A scoreboard: each team on a full-width row of its own with its goals at the end, and
-                under it the people who predicted it. Side by side either side of the score, long names
-                (Crystal Palace, Nottm Forest) had a third of the card and squashed (2026-11-25). The two
-                numbers share one column, so the score reads straight down. */}
-            <div className="mt-5 divide-y divide-ink/20 border-y border-ink/30">
-              {([
-                { team: match.home, goals: score.home, names: homeNames, side: 'home' as const },
-                { team: match.away, goals: score.away, names: awayNames, side: 'away' as const },
-              ]).map((row) => (
-                <div key={row.side} className="grid grid-cols-[1fr_auto] items-center gap-6 py-[2vh]">
-                  <div className="min-w-0">
-                    <p className="font-display text-[clamp(2.2rem,5vw,4.6rem)] uppercase leading-[0.95]">{row.team.name}</p>
-                    <p className="mt-2 text-[clamp(1.05rem,1.8vw,1.6rem)]">
-                      {row.names.length ? row.names.join(', ') : <span className="text-ink-fade">Nobody</span>}
-
-                    </p>
-                    {/* The banker, on a tag of its own: outlined while the team is winning, solid red
-                        while it is not - the danger, in view of the room - then +6, or BUST at full time. */}
-                    {(() => {
-                      const names = bankerNames(row.side);
-                      if (names.length === 0) return null;
-                      const other = row.side === 'home' ? score.away : score.home;
-                      const winning = pos.phase !== 'intro' && row.goals > other;
-                      const settled = pos.phase === 'result';
-                      const word = names.length > 1 ? 'Bankers' : 'Banker';
-                      // A banker doubles what its pick scores (§2): no penalty, so no bust - just what it
-                      // won, or nothing. No stakes shown while playing (2026-11-25).
-                      const paid = settled && match.result && here
-                        ? provisionalPoints(match, row.team.id, { home: match.result.home_goals, away: match.result.away_goals },
-                          { banker: true, homeCount: here.home.length, awayCount: here.away.length })
-                        : 0;
-                      const text = !settled
-                        ? `${word} · ${names.join(', ')}`
-                        : paid > 0 ? `${word} · ${names.join(', ')} +${paid}` : `${word} · ${names.join(', ')} · nothing`;
-                      const danger = pos.phase !== 'intro' && !winning;
-                      return (
-                        <p className={`mt-2 inline-block px-3 py-1 font-display text-[clamp(1rem,1.7vw,1.5rem)] uppercase tracking-[0.04em] transition-colors ${
-                          danger ? 'bg-overprint text-stock-lit' : 'border-2 border-overprint text-overprint'
-                        }`}>
-                          {text}
-                        </p>
-                      );
-                    })()}
-                  </div>
-                  <p className={`w-[1.6em] text-center font-data text-[clamp(3rem,7.5vw,7rem)] leading-none tabular-nums transition-[color,transform] duration-300 ${
-                    litSide === row.side ? 'scale-110 text-overprint' : pos.phase === 'intro' ? 'text-ink-fade/40' : 'text-ink'
-                  }`}>
-                    {pos.phase === 'intro' ? '–' : row.goals}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-
-            {/* No list of who scored what at full time ("+7 Dad · +3 Nan"): it was gone before anyone
-                could read it, and the league beside it says the same thing (2026-11-25). */}
-          </section>
+          <div className="mt-4">
+            <MatchBoard match={match} score={score} pos={pos} crowd={crowd} nameOf={nameOf} litSide={litSide} compact={onPhone} />
+          </div>
         )}
 
         {/* No list of finished results: nobody looks back at them; the league is what is watched

@@ -38,7 +38,7 @@ mdparty_room.version, which is what lets a poll that is already up to date skip 
 
 const crypto = require('crypto');
 const { transaction, query } = require('../database');
-const { drawFixtures, playFixtures, teamTable } = require('./mdPartyEngine');
+const { pickTeams, drawFixtures, playFixtures, teamTable } = require('./mdPartyEngine');
 
 /*
 IN PREVIEW (2026-11-24): only these users may host. Launching is setting this to null, in a commit of
@@ -47,7 +47,7 @@ is never gated: a player only ever reaches one through a host who could create i
 */
 const PARTY_PREVIEW_HOST_IDS = [50];
 
-const ROUND_OPTIONS = [1, 2, 3];
+const ROUND_OPTIONS = [2, 3, 4]; // 2026-11-27, with six-fixture rounds (§2); was 1, 2 or 3
 // Six seats, always (2026-11-25): a human takes one, a bot fills any other. The scoring counts
 // players, so the room is always the same size.
 const SEATS = 6;
@@ -131,11 +131,19 @@ async function activeTeams(db) {
 }
 
 /**
+ * The game's twelve (§2, §4.5). Seeded from the room's id, so every call for a room gives the
+ * same twelve with no column to store them in, and the twelve are fixed before round 1 is drawn.
+ */
+async function gameTeams(db, room) {
+  return pickTeams(await activeTeams(db), Math.imul(room.id, 2654435761) >>> 0);
+}
+
+/**
  * Open a round: draw its fixtures (§4.5, first step) and move the room to 'open'. The results do
  * not exist yet and will not until the round locks.
  */
 async function openRound(db, room, roundNumber) {
-  const teams = await activeTeams(db);
+  const teams = await gameTeams(db, room);
   const drawSeed = newSeed();
   const fixtures = drawFixtures(teams, drawSeed);
 
@@ -242,7 +250,7 @@ async function lockAndPlayRound(db, room) {
     [room.id, room.current_round]
   )).rows[0];
 
-  const teams = await activeTeams(db);
+  const teams = await gameTeams(db, room);
   const fixtures = (await db.query(
     'SELECT id, home_team_id AS home_id, away_team_id AS away_id FROM mdparty_fixture WHERE round_id = $1 ORDER BY sort_order',
     [round.id]
@@ -252,7 +260,7 @@ async function lockAndPlayRound(db, room) {
 
   const played = playFixtures({ teams, fixtures, results, roundNumber: room.current_round, seed: playSeed });
 
-  // One statement for all ten results.
+  // One statement for all six results.
   const params = [];
   const values = played.map((f) => {
     params.push(f.id, f.home_rating, f.away_rating, f.home_goals, f.away_goals, JSON.stringify(f.goals));
@@ -394,7 +402,7 @@ function crowdFor(fixtures, predictions, players, bankers) {
  */
 async function buildState(db, room, player) {
   const [teams, playersRes, roundsRes, predictionsRes, clockRes, bankersRes] = await Promise.all([
-    activeTeams(db),
+    gameTeams(db, room),
     db.query(
       `SELECT p.id, p.display_name, p.is_host,
               EXISTS (SELECT 1 FROM mdparty_submission s JOIN mdparty_round r ON r.id = s.round_id

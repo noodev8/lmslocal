@@ -2,8 +2,8 @@
 =======================================================================================================================================
 services/mdPartyEngine.js — the Matchday Party match engine
 =======================================================================================================================================
-Purpose: Plays a round of Matchday Party: draws ten made-up fixtures from the twenty teams when the
-         round opens, and simulates their results when it locks. docs/matchday-party.md §4 is the contract; this file is the only
+Purpose: Plays a game of Matchday Party: picks the game's twelve teams from the twenty, draws six
+         made-up fixtures from them when each round opens, and simulates their results when it locks. docs/matchday-party.md §4 is the contract; this file is the only
          place the engine lives.
 
 PURE: no database, no clock, no Math.random. Everything comes in as arguments and the only source
@@ -38,7 +38,7 @@ THE MATCH, AS A PAPER GAME (§4.2, agreed 2026-11-24):
 
 THE LEAGUE-POSITION BONUS (§4.3, agreed 2026-11-24):
   From round 2, each team adds (teams + 1 - its position) x POSITION_BONUS to its rating, from
-  the teams' own table in this game: top of twenty +20, bottom +1. It lives only in the game and
+  the teams' own table in this game: top of twelve +12, bottom +1. It lives only in the game and
   never changes a stored rating. Round 1 has no table, so no bonus. x1, not the x2 first floated:
   after one or two rounds the table is mostly goal difference, and x2 let a lucky first weekend
   count for more than the club.
@@ -50,6 +50,10 @@ const WINDOW = 22;
 const SPREAD = 48;
 const HOME_ADVANTAGE = 10;
 const POSITION_BONUS = 1;
+// Twelve of the twenty play in a game (2026-11-27): six fixtures a round, every team in each one,
+// so form still counts and the reveal is ~2 minutes, not ~3m40. A random twelve, not the top
+// twelve, so there are still underdogs for the scoring to reward and each game has its own cast.
+const TEAMS_PER_GAME = 12;
 
 /**
  * Seeded random numbers in [0, 1). mulberry32: tiny, fast, and good enough for dice. Not for
@@ -125,8 +129,25 @@ function effectiveRating(rating, position, teamCount, roundNumber) {
 }
 
 /**
- * Draw a round's fixtures: every team once, paired at random, home side at random (§2: ten
- * fixtures, all twenty teams). Done when the round OPENS, so players can see what to predict.
+ * Pick a game's teams: TEAMS_PER_GAME of the pool at random, once, when the game starts (§2).
+ * Every round of that game is drawn from the same twelve.
+ * @returns the chosen teams, in pool order
+ */
+function pickTeams(teams, seed, count = TEAMS_PER_GAME) {
+  if (count > teams.length || count % 2 !== 0) throw new Error('partyEngine: bad team count');
+  const rand = seededRandom(seed);
+  const order = [...teams];
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  const chosen = new Set(order.slice(0, count));
+  return teams.filter((t) => chosen.has(t));
+}
+
+/**
+ * Draw a round's fixtures: every team once, paired at random, home side at random (§2: six
+ * fixtures, the game's twelve teams). Done when the round OPENS, so players can see what to predict.
  * @returns [{ home_id, away_id }]
  */
 function drawFixtures(teams, seed) {
@@ -167,11 +188,12 @@ function playFixtures({ teams, fixtures, results, roundNumber, seed }) {
 }
 
 module.exports = {
+  pickTeams,
   drawFixtures,
   playFixtures,
   playMatch,
   teamTable,
   effectiveRating,
   seededRandom,
-  ENGINE: { BLOCKS, WINDOW, SPREAD, HOME_ADVANTAGE, POSITION_BONUS }
+  ENGINE: { BLOCKS, WINDOW, SPREAD, HOME_ADVANTAGE, POSITION_BONUS, TEAMS_PER_GAME }
 };

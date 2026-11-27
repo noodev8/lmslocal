@@ -23,11 +23,11 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { partyApi, type PartyState, type PartyFixture, type PartyPlayersRow } from '@/lib/api';
 import CardStrip, { type StripFixture, type TapOutcome } from '@/components/coupon/CardStrip';
-import PhoneReveal from '@/components/mdparty/PhoneReveal';
+import TvReveal from '@/components/mdparty/TvReveal';
 import { Confetti } from '@/components/mdparty/Celebration';
 import { clockOffset, ordinal, useRevealPosition } from '@/lib/mdpartyReveal';
 import { outcomeWord, signedPoints } from '@/lib/games';
-import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY, BTN_OUTLINE } from '@/lib/design';
+import { LABEL, EYEBROW, HEADING, PANEL, BTN_PRIMARY } from '@/lib/design';
 
 const SESSION_KEY = 'mdparty_session';
 type Session = { code: string; player_token: string };
@@ -213,6 +213,9 @@ export default function PartyPage() {
     setResumable(null);
     setNotice(null);
     setSession(s);
+    // Drop ?new=1 (and ?code=) once in a game, so a refresh resumes it rather than reopening the
+    // start screen with a Resume link (2026-11-27).
+    if (window.location.search) window.history.replaceState(null, '', window.location.pathname);
   };
 
   // Ending is final: the game is forgotten on this device and the host is back at the start.
@@ -290,6 +293,17 @@ export default function PartyPage() {
   const stillToSend = (state?.players ?? []).filter((p) => !p.submitted).map((p) => p.name);
   const everyoneSent = (state?.players?.length ?? 0) > 0 && stillToSend.length === 0;
   const lastRound = (room?.current_round ?? 0) >= (room?.rounds_total ?? 0);
+  // Tapping a banker sends the coupon (2026-11-27): it is the last decision, so a Send button after
+  // it was a press for nothing. Every coupon has a banker; there is no "no banker" choice.
+  const sendCoupon = async (bankerId: number) => {
+    if (!room || !round || !session) return;
+    setBanker(bankerId);
+    await act(() => partyApi.setPredictions(room.code, session.player_token, round.number,
+      Object.entries(coupon).map(([fixture_id, team_id]) => ({ fixture_id: Number(fixture_id), team_id })),
+      bankerId));
+    setStep('cards');
+  };
+
   // The team this phone's banker is on, for the "Sent" line.
   const bankerFixture = banker === null ? undefined : state?.round?.fixtures.find((f) => f.id === banker);
   const bankerName = !bankerFixture || coupon[bankerFixture.id] === undefined
@@ -368,12 +382,16 @@ export default function PartyPage() {
             <p className={`${EYEBROW} text-overprint`}>Hosting?</p>
             <h2 className={`${HEADING} mt-3 text-4xl`}>Start a Matchday Party</h2>
             <p className="mt-5 max-w-lg text-[17px] leading-relaxed">
-              Predict the winner of ten made-up Premier League matches a round. Points go on a
+              Predict the winner of six made-up Premier League matches a round. Points go on a
               table. Most points after the last round wins.
+            </p>
+            <p className="mt-3 max-w-lg text-[17px] leading-relaxed">
+              Your players don&apos;t need an LMSLocal account and don&apos;t register: they join
+              with the room code and a name.
             </p>
             <p className={`${LABEL} mt-8 text-ink-fade`}>How many rounds?</p>
             <div className="mt-3 flex gap-3" role="radiogroup" aria-label="How many rounds">
-              {[1, 2, 3].map((n) => (
+              {[2, 3, 4].map((n) => (
                 <button
                   key={n}
                   type="button"
@@ -474,6 +492,11 @@ export default function PartyPage() {
               <section className={`${PANEL} mt-6 p-6 sm:p-8`}>
                 <p className={`${LABEL} text-ink-fade`}>Room code</p>
                 <p className="mt-2 font-data text-6xl tracking-[0.15em]">{room.code}</p>
+                {isHost && (
+                  <p className="mt-4 text-[16px] text-ink-fade">
+                    Share this code. Players go to lmslocal.co.uk/mdparty and type it with their name - no account, no registering.
+                  </p>
+                )}
                 {!isHost && (
                   <p className="mt-4 text-[16px] text-ink-fade">You&apos;re in. The host starts the game when everyone is ready.</p>
                 )}
@@ -482,7 +505,12 @@ export default function PartyPage() {
                   {state?.players?.map((p) => (
                     <li key={p.id} className="text-[17px]">
                       {p.name}
-                      {p.is_host && <span className={`${LABEL} ml-2 text-ink-fade`}>host</span>}
+                      {/* A bordered tag, not plain text after the name: "Sam host" read as part of the name. */}
+                      {p.is_host && (
+                        <span className={`${LABEL} ml-2 inline-block rounded border border-ink-fade px-1.5 py-0.5 align-middle text-ink-fade`}>
+                          Host
+                        </span>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -523,27 +551,44 @@ export default function PartyPage() {
                 and the round locks once everyone's is in (or the host locks it). */}
             {room.state === 'open' && round && (
               <section className="mx-auto mt-6 max-w-xl">
-                <p className={EYEBROW}>Round {round.number}</p>
-                <h2 className={`${HEADING} mt-1 text-3xl`}>Your predictions</h2>
-                {/* The host kicks off; the round never starts by itself (2026-11-25). Once everyone has
-                    sent a coupon, Kick off is the host's next action, at the top where it is seen. */}
-                {isHost && everyoneSent && (
-                  <div className="mb-6 mt-4 border border-ink bg-stock-lit p-5 text-center">
-                    <p className="font-display text-2xl uppercase">Everyone&apos;s in</p>
-                    <button type="button" onClick={() => act(() => partyApi.lock(room.code))} disabled={busy} className={`${BTN_PRIMARY} mt-4 block w-full px-7 py-3.5 text-2xl disabled:opacity-50`}>
-                      Kick off
-                    </button>
+                {/* The host, once their own coupon is sent, sees only who is still to send and then
+                    Kick off (2026-11-27). No cards to change. Kicking off without a player who has
+                    not sent is a quiet link under their name, not the main action. */}
+                {isHost && submitted && (
+                  <div className="border border-ink bg-stock-lit p-6 text-center">
+                    <p className={EYEBROW}>Round {round.number}</p>
+                    {everyoneSent ? (
+                      <>
+                        <p className={`${HEADING} mt-2 text-3xl`}>Everyone&apos;s in</p>
+                        <button type="button" onClick={() => act(() => partyApi.lock(room.code))} disabled={busy} className={`${BTN_PRIMARY} mt-5 block w-full px-7 py-3.5 text-2xl disabled:opacity-50`}>
+                          Kick off
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="mt-2 text-[16px] text-ink-fade">Waiting for <strong className="text-ink">{stillToSend.join(', ')}</strong></p>
+                        {/* A way past a player who never sends (2026-11-27). Their name is on the
+                            TV and every phone, so the room knows who it is going without; they
+                            score nothing this round. */}
+                        <button type="button" onClick={() => act(() => partyApi.lock(room.code))} disabled={busy} className={`${LABEL} mt-5 text-ink-fade underline decoration-dotted underline-offset-4 hover:text-ink disabled:opacity-50`}>
+                          Kick off without them
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
-                <p className="mb-4 mt-3 text-[15px] text-ink-fade">
+                {!(isHost && submitted) && (<>
+                {step === 'cards' && (<>
+                <p className={EYEBROW}>Round {round.number}</p>
+                <h2 className={`${HEADING} mt-1 text-3xl`}>Your predictions</h2>
+                </>)}
+                {step === 'cards' && <p className="mb-4 mt-3 text-[15px] text-ink-fade">
                   {!submitted
                     ? 'Tap the team you think will win.'
                     : stillToSend.length > 0
                       ? <>Sent{bankerName ? <> &middot; banker &#9733; {bankerName}</> : ''}. Waiting for {stillToSend.join(', ')}. You can change yours and send again until kick-off.</>
-                      : isHost
-                        ? <>Sent. You can still change yours and send again before you kick off.</>
-                        : <>Sent. Waiting for the host to kick off.</>}
-                </p>
+                      : <>Sent. Waiting for the host to kick off.</>}
+                </p>}
                 {step === 'cards' && (
                 <CardStrip
                   fixtures={round.fixtures.map((f) => toStripFixture(f, coupon[f.id], banker === f.id))}
@@ -561,6 +606,14 @@ export default function PartyPage() {
                     });
                     // A banker on a match taken back goes with it: there is nothing left to bank.
                     if (takingBack && banker === fixtureId) setBanker(null);
+                    // The tap that completes the coupon goes straight to the banker (2026-11-27):
+                    // stopping on a "Next" button was a press for nothing. A short pause lets the
+                    // last card's pick register on screen first.
+                    const wasComplete = round.fixtures.every((f) => coupon[f.id] !== undefined);
+                    const nowComplete = !takingBack && round.fixtures.every((f) => f.id === fixtureId || coupon[f.id] !== undefined);
+                    if (nowComplete && !wasComplete) {
+                      setTimeout(() => { setStep('banker'); window.scrollTo({ top: 0 }); }, 450);
+                    }
                     return takingBack ? 'cleared' : 'chosen';
                   }}
                   requireAll
@@ -576,14 +629,13 @@ export default function PartyPage() {
                 />
                 )}
 
-                {/* The banker: one decision, with every prediction in view. */}
+                {/* The banker: one decision, with every prediction in view. Pared down on 2026-11-27:
+                    a heading, one line of rule, the picks, Send. */}
                 {step === 'banker' && (
-                  <div className={`${PANEL} p-5 sm:p-6`}>
-                    <p className={`${HEADING} text-3xl`}>&#9733; Your banker</p>
-                    <p className="mt-2 text-[16px] text-ink">
-                      Doubles whatever this pick scores. One a round.
-                    </p>
-                    <ul className="mt-5 space-y-2" role="radiogroup" aria-label="Your banker">
+                  <div>
+                    <h2 className={`${HEADING} text-3xl`}>&#9733; Pick your banker</h2>
+                    <p className="mt-1 text-[15px] text-ink-fade">Its points count double. Tap one to send.</p>
+                    <ul className="mt-4 space-y-2" role="radiogroup" aria-label="Your banker">
                       {round.fixtures.filter((f) => coupon[f.id] !== undefined).map((f) => {
                         const team = coupon[f.id] === f.home.id ? f.home : f.away;
                         const other = team.id === f.home.id ? f.away : f.home;
@@ -594,93 +646,59 @@ export default function PartyPage() {
                               type="button"
                               role="radio"
                               aria-checked={chosen}
-                              onClick={() => setBanker(chosen ? null : f.id)}
-                              className={`flex w-full items-baseline justify-between gap-3 border px-4 py-3 text-left transition-colors ${
-                                chosen ? 'border-2 border-overprint bg-stock-lit' : 'border-ink/30 hover:border-ink'
+                              disabled={busy}
+                              onClick={() => sendCoupon(f.id)}
+                              className={`flex w-full items-center justify-between gap-3 border px-4 py-2.5 text-left transition-colors ${
+                                chosen ? 'border-overprint bg-overprint text-stock-lit' : 'border-ink/25 bg-stock-lit hover:border-ink'
                               }`}
                             >
-                              <span>
-                                <span className="font-display text-xl uppercase">{team.name}</span>
-                                <span className="ml-2 text-[14px] text-ink-fade">{team.id === f.home.id ? 'v' : 'at'} {other.name}</span>
+                              <span className="font-display text-xl uppercase">{team.name}</span>
+                              <span className={`text-[13px] ${chosen ? 'text-stock-lit' : 'text-ink-fade'}`}>
+                                {chosen ? '★ ×2' : `v ${other.name}`}
                               </span>
-                              <span className={`${LABEL} ${chosen ? 'text-overprint' : 'text-ink-fade'}`}>{chosen ? '\u2605 Banker' : '\u2606'}</span>
                             </button>
                           </li>
                         );
                       })}
-                      <li>
-                        <button
-                          type="button"
-                          role="radio"
-                          aria-checked={banker === null}
-                          onClick={() => setBanker(null)}
-                          className={`w-full border px-4 py-3 text-left ${banker === null ? 'border-2 border-ink bg-stock-lit' : 'border-dashed border-ink/30 hover:border-ink'}`}
-                        >
-                          <span className={LABEL}>No banker this round</span>
-                        </button>
-                      </li>
                     </ul>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={async () => {
-                        await act(() => partyApi.setPredictions(room.code, session!.player_token, round.number,
-                          Object.entries(coupon).map(([fixture_id, team_id]) => ({ fixture_id: Number(fixture_id), team_id })),
-                          banker !== null && coupon[banker] !== undefined ? banker : null));
-                        setStep('cards');
-                      }}
-                      className={`${BTN_PRIMARY} mt-6 block w-full px-6 py-3.5 text-xl disabled:opacity-50`}
-                    >
-                      {submitted ? 'Send again' : 'Send'}
-                    </button>
-                    <button type="button" onClick={() => setStep('cards')} className={`${LABEL} mt-4 block w-full text-center text-ink-fade underline decoration-dotted underline-offset-4 hover:text-ink`}>
-                      &larr; Back to the matches
+                    <button type="button" onClick={() => setStep('cards')} className={`${LABEL} mt-4 block w-full text-center text-ink-fade hover:text-ink`}>
+                      &larr; Change picks
                     </button>
                   </div>
                 )}
-                {isHost && !everyoneSent && (
-                  <button type="button" onClick={() => act(() => partyApi.lock(room.code))} disabled={busy} className={`${BTN_OUTLINE} mt-8`}>
-                    Kick off now &middot; {stillToSend.length} still to send
-                  </button>
-                )}
+                </>)}
               </section>
             )}
 
             {/* ------------------------------------------------------------ reveal */}
             {/* On the phone, one match at a time: this player's team in it, the score, their running
                 total (§6). The room watches the match itself on the TV (/mdparty/tv). The host's
-                button moves every screen on - quietly during the reveal, which is how it is skipped,
-                and as the main action once every result is in. */}
+                button moves every screen on once every result is in; there is no skip. */}
             {room.state === 'revealing' && round && round.locked && (
               <section className="mx-auto mt-6 max-w-xl">
                 <p className={EYEBROW}>Round {round.number}</p>
                 <div className="mt-4">
-                  <PhoneReveal
+                  <TvReveal
                     key={round.number}
                     fixtures={round.fixtures}
-                    predictions={round.my_predictions}
-                    banker={round.my_banker}
+                    crowd={round.crowd}
+                    players={state?.players ?? []}
+                    table={state?.players_table ?? []}
                     lockedAt={round.locked_at}
                     offsetMs={offsetMs}
-                    table={state?.players_table ?? []}
-                    crowd={round.crowd}
-                    playerId={me?.player_id}
+                    onPhone
                   />
                 </div>
                 {/* Once the results are in, the league is here too - nobody has to be watching the TV -
                     and the host's one button starts the next round, or shows the champion after the
                     last. No tables step in between (2026-11-25): it was a press for nothing. */}
-                {revealDone && <League table={state?.players_table ?? []} meId={me?.player_id} final={false} />}
+                {/* No skip during the reveal (2026-11-27): every round plays through. */}
                 {isHost ? (
                   revealDone ? (
                     <button type="button" onClick={() => act(() => lastRound ? partyApi.showTable(room.code) : partyApi.nextRound(room.code))} disabled={busy} className={`${BTN_PRIMARY} mt-8 block w-full px-7 py-3.5 text-2xl disabled:opacity-50`}>
                       {lastRound ? 'Show the champion' : 'Next round'}
                     </button>
-                  ) : (
-                    <button type="button" onClick={() => act(() => lastRound ? partyApi.showTable(room.code) : partyApi.nextRound(room.code))} disabled={busy} className={`${LABEL} mt-8 block w-full text-center text-ink-fade underline decoration-dotted underline-offset-4 hover:text-ink`}>
-                      {lastRound ? 'Skip to the champion' : 'Skip to the next round'}
-                    </button>
-                  )
+                  ) : null
                 ) : revealDone ? (
                   <p className="mt-8 text-center text-[16px] text-ink-fade">
                     {lastRound ? 'Waiting for the host to show the champion.' : 'Waiting for the host to start the next round.'}

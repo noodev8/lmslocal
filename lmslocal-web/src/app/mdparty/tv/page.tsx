@@ -162,9 +162,11 @@ export default function PartyTvPage() {
               <p className={`${LABEL} text-ink-fade`}>Sent &middot; {players.filter((p) => p.submitted).length} of {players.length}</p>
               <ul className="mt-4 space-y-2">
                 {players.map((p) => (
-                  <li key={p.id} className={`flex items-center justify-between border px-4 py-2 font-display text-[clamp(1.4rem,2.4vw,2.2rem)] uppercase ${p.submitted ? 'border-ink bg-ink text-stock-lit' : 'border-ink/30 text-ink-fade'}`}>
+                  // Light rows, not solid black (2026-11-27: a column of black bars was too heavy for
+                  // the room's screen). Sent is a paper row with a red tick; still thinking is faded.
+                  <li key={p.id} className={`flex items-center justify-between border px-4 py-2 font-display text-[clamp(1.4rem,2.4vw,2.2rem)] uppercase ${p.submitted ? 'border-ink/20 bg-stock-lit text-ink' : 'border-dashed border-ink/20 text-ink-fade/70'}`}>
                     <span>{p.name}</span>
-                    <span className={LABEL}>{p.submitted ? 'Sent' : 'Thinking'}</span>
+                    <span className={`${LABEL} ${p.submitted ? 'text-overprint' : ''}`}>{p.submitted ? '✓ Sent' : 'Thinking'}</span>
                   </li>
                 ))}
               </ul>
