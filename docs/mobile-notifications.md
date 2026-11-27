@@ -1,6 +1,6 @@
 # Mobile push notifications
 
-How a push gets from the queue to a player's phone, and where a tap lands.
+How a push gets to a player's phone, and where a tap lands.
 
 This is the hardest path in the product to test — it needs a real device, a real signed
 build, and Firebase in the middle — so the parts that are easy to get silently wrong are
@@ -8,22 +8,44 @@ written down here rather than left to be rediscovered.
 
 ---
 
-## 1. The pipeline
+## 1. The pipeline: a push goes with an email
 
-`mobile_notification_queue` → `POST /process-mobile-notifications` (cron, every 5 min) →
+Since 2026-11-27 a push is an **add-on to an email**, never a message of its own. The email's
+service decides who qualifies, when and what they are told; a push goes to someone only when
+**their email was actually sent**, and only if they have a registered device. Held by the 48-hour
+quiet period, failed, opted out or never a candidate: no email, no push. So no push rule exists
+anywhere — the email's rules are the push's rules.
+
+Admin **Emails** → Send (with *Also push to the app* ticked) → `services/emailSweep.js` sends the
+emails → `services/emailPush.js` pushes to whoever was sent one, in one batch →
 `services/fcmService.js` → Firebase → device.
 
-Two types, in priority order. A user gets **at most one** notification per run; the rest of
-their pending entries are marked `skipped`.
+| Email | Push title | Push body | Tap lands on |
+|---|---|---|---|
+| `pick_reminder`, one competition | The email's subject (`Pick by Sat 11:30am — …` / `Predict by …`) | The email's opening line | That competition's **Play** tab (LMS pick or Matchday predictions) |
+| `pick_reminder`, several | The email's subject (`Before … — 3 competitions need you`) | `3 of your competitions are waiting on you this round.` | No competition — the app just opens, as the email's button goes to the dashboard |
 
-| Type | Copy | Tap lands on |
-|---|---|---|
-| `new_round` | "Results Are In / Results are in - see how you did!" | The competition's own page |
-| `pick_reminder` | "Pick Reminder / Don't forget to make your pick before it locks!" | That competition's **Play** tab |
+An email takes part by carrying `push` on its entry in `services/emailCatalog.js`: a function from
+the email's template data to the notification (`pushFor` in `services/pickReminder.js`). Only
+`pick_reminder` has one. The words are copied from the email template — change one, change both.
 
-`process-mobile-notifications.js` re-checks conditions at send time, not just at queue time:
-still an active, unhidden member; has not already picked; round not yet locked. A queued
-notification that has become wrong is dropped rather than sent.
+- **Opt-in per send.** `sendToAll` pushes only when its caller asks. The admin route does, when
+  the box is ticked; `scripts/email-sweep.js` does not, so a crontab line sends emails only. When a
+  push may land on a phone (not at 07:15) is a decision for when the cron comes back.
+- **Test mode** sends the first candidate's push to the signed-in admin's own devices, and writes
+  nothing.
+- **A token belongs to whoever registered it last.** Signing out does not remove a token, so a
+  phone that changed hands carries it under both accounts; only the latest registration is sent to.
+- **Dead tokens are deleted** when Firebase reports them unregistered, so "has the app" on the admin
+  screen stays honest.
+- **`mobile_notification_queue` is the record**, not a queue: one row per person per push, `sent` or
+  `failed`, filed under the lead competition and round. Nothing is `pending` any more.
+
+**Before 2026-11-27** pushes had their own queue, filled when fixtures went up or a player joined,
+and a 5-minute cron (`/process-mobile-notifications`) to drain it — its own 24-hour window, a
+`new_round` "Results are in" message, and no opt-out or archived checks. The cron was never
+scheduled; seven pushes went out in its life. It was removed rather than fixed, so that there is one
+set of rules.
 
 ---
 
@@ -93,11 +115,10 @@ finishes where it was aimed. Same holder the `/join/<code>` deep link uses; see
 `flutter run` is not enough — the tap paths need the app launched by the notification.
 
 ```bash
-# Fires a real push through the shipping code path.
-node <<'EOF'
-# see git history for scripts/send-test-push.js, or write six lines against
-# services/fcmService.js sendNotification(token, type, { competition_id })
-EOF
+# Easiest: admin Emails -> Pick reminder -> Review, test mode, "Also push to the app" ticked.
+# The first candidate's push goes to your own phone. Or, from lmslocal-server/:
+node -e "require('dotenv').config(); require('./services/fcmService').sendPushes([{ token: '<fcm token>',
+  type: 'pick_reminder', title: 'Test', body: 'Test', data: { competition_id: 123 } }]).then(r => console.log(JSON.stringify(r)))"
 ```
 
 Three traps, each of which wasted time:

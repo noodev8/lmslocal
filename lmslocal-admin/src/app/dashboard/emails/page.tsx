@@ -55,6 +55,7 @@ import {
   ArrowPathIcon,
   BeakerIcon,
   CheckCircleIcon,
+  DevicePhoneMobileIcon,
   ExclamationTriangleIcon,
   EyeIcon,
   MegaphoneIcon,
@@ -96,7 +97,12 @@ interface OutlineEmail {
   name: string;
   /** Whether recipients depend on the selected competition. */
   scoped: boolean;
-  /** Marked Y in the outline's MOBILE NOTIFICATION column. */
+  /**
+   * Marked Y in the outline's MOBILE NOTIFICATION column: this email should carry a push to the app.
+   * A plan, not a switch. Whether one is actually WIRED is the server's catalog (`push` on the
+   * entry in services/emailCatalog.js) - pick_reminder only, since 2026-11-27 - and the card and
+   * panel find that out from the counts, which carry `with_app` / `app_count` only when it is.
+   */
   push?: boolean;
   note?: string;
   /**
@@ -153,7 +159,7 @@ const OUTLINE: OutlineEmail[] = [
     note: 'Round locks within 30 hours, no pick (LMS) or no prediction (Matchday)',
     focus: true,
     blurb:
-      'A player still has no pick and their round is about to lock. The one email with a real cost behind it — a missed pick loses a life, and 20% of all player-rounds so far were NO-PICK. Covers Matchday too: no prediction at all this round. One email per person, listing every competition they owe a choice in (docs/matchday.md §9.1). Once per player per round. Locks is their countdown, not an elapsed time.',
+      'A player still has no pick and their round is about to lock. The one email with a real cost behind it — a missed pick loses a life, and 20% of all player-rounds so far were NO-PICK. Covers Matchday too: no prediction at all this round. One email per person, listing every competition they owe a choice in (docs/matchday.md §9.1). Once per player per round. Locks is their countdown, not an elapsed time. Anyone with the app also gets a push with the email — same words, and only if the email is sent.',
   },
   {
     key: 'organiser_nudge',
@@ -558,6 +564,9 @@ function FocusCard({
               {email.scoped && (
                 <Stat value={count.competitions} label={count.competitions === 1 ? 'competition' : 'competitions'} />
               )}
+              {/* Only on an email that pushes with it. Of the waiting, not a separate audience: a
+                  push only ever goes with a sent email (services/emailPush.js). */}
+              {count.with_app !== undefined && <Stat value={count.with_app} label="have the app" />}
               {/* Without this, an email showing zero waiting is ambiguous: caught up, or never
                   sending at all. Review is where the names behind it are. */}
               <Stat value={count.sent_recently} label="sent · 7 days" />
@@ -777,6 +786,12 @@ function SendPanel({
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  /*
+  Also push to the app, for an email that has one. On by default: the push is part of the email
+  now, so leaving it out is the exception worth a click. Kept for the life of the panel, like the
+  ticks, and the server ignores it on any email with no push.
+  */
+  const [alsoPush, setAlsoPush] = useState(true);
 
   /* History, loaded on its own and only once its tab has been opened. */
   const [history, setHistory] = useState<EmailHistoryResponse | null>(null);
@@ -906,6 +921,10 @@ function SendPanel({
   const count = preview?.recipient_count ?? 0;
   const recipients: EmailRecipient[] = useMemo(() => preview?.recipients ?? [], [preview]);
 
+  /* The server says whether this email pushes: app_count is a number only when it does. */
+  const pushAvailable = typeof preview?.app_count === 'number';
+  const willPush = pushAvailable && alsoPush;
+
   const allSelected = recipients.length > 0 && selected.size === recipients.length;
 
   /*
@@ -979,11 +998,12 @@ function SendPanel({
   const chosen = recipients.filter((r) => selected.has(keyOf(r)));
   const nothingChosen = chosen.length === 0;
   const chosenPayload = chosen.map((r) => ({ user_id: r.user_id, competition_id: r.competition_id }));
+  const chosenWithApp = chosen.filter((r) => r.has_app === true).length;
 
   const handleSend = () =>
     run(async () => {
       // Always an explicit list, so expected_count has nothing to guard here.
-      const res = await adminApi.sendEmails(email.key, scopeId, testMode, undefined, chosenPayload);
+      const res = await adminApi.sendEmails(email.key, scopeId, testMode, undefined, chosenPayload, willPush);
 
       if (res.return_code === 'SUCCESS') return res.message || 'Done';
       if (res.return_code === 'NO_RECIPIENTS') return res.message || 'Nobody qualifies';
@@ -1282,6 +1302,15 @@ function SendPanel({
                             shrunk, because the name is what the operator scans for.
                             */}
                             <td className="truncate px-3 py-1.5 text-slate-800" title={r.display_name}>
+                              {/* Has the app, so a push goes with the email. A marker on the name
+                                  rather than a column: it qualifies the row, and the table has no
+                                  width to spare. */}
+                              {r.has_app && (
+                                <DevicePhoneMobileIcon
+                                  className="mr-1 inline h-3.5 w-3.5 -translate-y-px text-slate-400"
+                                  aria-label="Has the app"
+                                />
+                              )}
                               {r.display_name}
                             </td>
                             <td className="truncate px-3 py-1.5 text-slate-500" title={r.email}>
@@ -1324,6 +1353,32 @@ function SendPanel({
               was the tallest thing on the panel in the resting state.
               */}
 
+              {/*
+              The push, on an email that has one. Says how many of the TICKED would get it, since
+              that is who a send reaches - and that it rides on the email: anyone the quiet period
+              holds back gets neither.
+              */}
+              {count > 0 && pushAvailable && (
+                <label className="flex items-center gap-2 text-sm text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={alsoPush}
+                    onChange={(e) => setAlsoPush(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300"
+                  />
+                  <DevicePhoneMobileIcon className="h-4 w-4 text-slate-400" />
+                  <span>
+                    Also push to the app
+                    <span className="ml-1.5 text-xs text-slate-400">
+                      {nothingChosen
+                        ? `${(preview?.app_count ?? 0).toLocaleString()} of ${count.toLocaleString()} have it`
+                        : `${chosenWithApp} of the ${chosen.length} ticked have it`}{' '}
+                      — only with an email that is actually sent
+                    </span>
+                  </span>
+                </label>
+              )}
+
               {count > 0 &&
                 !nothingChosen &&
                 (testMode ? (
@@ -1334,6 +1389,7 @@ function SendPanel({
                       <p className="text-amber-700">
                         Built from {chosen[0]?.display_name}&apos;s data. Nobody real is touched and nothing is
                         queued.
+                        {willPush && ' Their push goes to your own phone, if you have the app.'}
                       </p>
                     </div>
                   </div>
@@ -1345,7 +1401,11 @@ function SendPanel({
                         Live send — {chosen.length.toLocaleString()} ticked recipient
                         {chosen.length === 1 ? '' : 's'}
                       </p>
-                      <p className="text-red-700">This goes to actual people. There is no undo.</p>
+                      <p className="text-red-700">
+                        This goes to actual people. There is no undo.
+                        {willPush && chosenWithApp > 0 &&
+                          ` Up to ${chosenWithApp} also get a push on their phone.`}
+                      </p>
                     </div>
                   </div>
                 ))}

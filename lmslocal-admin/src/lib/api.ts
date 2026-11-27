@@ -875,6 +875,9 @@ export interface EmailCount {
   sent_recently: number;
   /* Competitions the waiting recipients span. Zero on platform-wide emails, which have none. */
   competitions: number;
+  /* Of `waiting`, how many have the app and so would get a push with the email. Present only on an
+     email that sends one (pick_reminder) - absent means "no push", not "nobody has the app". */
+  with_app?: number;
 }
 
 export type EmailTargetsResponse = ApiResponse & {
@@ -899,6 +902,8 @@ export interface EmailRecipient {
   /* Whether they run the competition on this row. Same null convention as missed_pick: an email
      whose service does not answer the question sends null, and the panel hides the filter. */
   is_organiser: boolean | null;
+  /* Would get a push with the email. Null on an email that sends no push. */
+  has_app: boolean | null;
 }
 
 export type MarkEmailsSentResponse = ApiResponse & {
@@ -917,6 +922,8 @@ export type PreviewEmailResponse = ApiResponse & {
   /* Heading for the `since` column - "Joined" on a welcome, "When" otherwise. Server-derived from
      the same chain that picks the value, so it cannot name a column the rows do not carry. */
   since_label?: string;
+  /* Of recipient_count, how many have the app. Null on an email that sends no push. */
+  app_count?: number | null;
   /* Rendered from the real template for the first recipient. Null when nobody qualifies. */
   sample?: {
     for_email: string;
@@ -1003,6 +1010,9 @@ export type SendEmailsResponse = ApiResponse & {
   candidate_count?: number;
   /* Set in test mode only - where the single copy actually went. */
   sent_to?: string | null;
+  /* Only when a push was asked for. People reached live; the operator's own devices in test. */
+  push_sent_count?: number;
+  push_failed_count?: number;
 };
 
 export type BroadcastAudience = 'all' | 'competition';
@@ -1395,7 +1405,10 @@ export const adminApi = {
     expectedCount?: number,
     /* Send to only these, intersected server-side with who still qualifies. Ticked rows mean the
        same here as they do for markEmailsSent. */
-    recipients?: { user_id: number; competition_id: number | null }[]
+    recipients?: { user_id: number; competition_id: number | null }[],
+    /* Also push to the app, for whoever's email is sent. Ignored on an email with no push. In test
+       mode the push goes to the signed-in admin's own phone. */
+    push?: boolean
   ): Promise<SendEmailsResponse> => {
     const response = await api.post<SendEmailsResponse>('/admin/send-emails', {
       email_type: emailType,
@@ -1403,6 +1416,7 @@ export const adminApi = {
       test_mode: testMode,
       expected_count: expectedCount,
       recipients,
+      push: push === true,
     });
     return response.data;
   },

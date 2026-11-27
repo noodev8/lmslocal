@@ -278,46 +278,6 @@ router.post('/', verifyToken, async (req, res) => {
       // transaction, on the signup path. A new player starts with every team available because
       // they have no picks yet, so there is nothing to write. See docs/allowed-teams.md.
 
-      // === QUEUE PICK REMINDER NOTIFICATION ===
-      // If there's an active round, queue a pick_reminder for this new player
-      // They know about the round (just joined) but might forget to pick
-      // Excludes guest users
-      const activeRoundResult = await client.query(`
-        SELECT r.id as round_id, r.round_number
-        FROM round r
-        WHERE r.competition_id = $1
-          AND r.lock_time > NOW()
-        ORDER BY r.round_number ASC
-        LIMIT 1
-      `, [data.competition_id]);
-
-      if (activeRoundResult.rows.length > 0) {
-        const activeRound = activeRoundResult.rows[0];
-
-        // Check user is not a guest before queueing notification
-        const userCheckResult = await client.query(`
-          SELECT email FROM app_user WHERE id = $1
-        `, [user_id]);
-
-        const userEmail = userCheckResult.rows[0]?.email || '';
-        if (!userEmail.includes('@lms-guest.')) {
-          // Use INSERT ... SELECT with NOT EXISTS to avoid duplicate notifications
-          // Also requires user has a device token registered (no point queueing if they can't receive)
-          await client.query(`
-            INSERT INTO mobile_notification_queue (user_id, type, competition_id, round_id, round_number, status, created_at)
-            SELECT $1, 'pick_reminder', $2, $3, $4, 'pending', NOW()
-            WHERE EXISTS (SELECT 1 FROM device_tokens WHERE user_id = $1)
-              AND NOT EXISTS (
-                SELECT 1 FROM mobile_notification_queue
-                WHERE user_id = $1
-                  AND type = 'pick_reminder'
-                  AND competition_id = $2
-                  AND round_id = $3
-              )
-          `, [user_id, data.competition_id, activeRound.round_id, activeRound.round_number]);
-        }
-      }
-
       // Return comprehensive success response with both competition and membership details
       return {
         return_code: "SUCCESS",

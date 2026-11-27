@@ -275,7 +275,7 @@ async function getFixturePushCandidates(client, teamListId) {
 
 /**
  * Pushes the staged batch to ONE competition: creates or fills its round, inserts the fixtures,
- * queues notifications, writes the audit row.
+ * writes the audit row.
  *
  * Does not touch fixture_load. The other subscribed competitions still need those rows, so
  * clearing the batch is its own deliberate step (/admin/clear-staged-batch) - the same shape as
@@ -467,44 +467,6 @@ async function pushFixturesToCompetition(client, competitionId) {
       [targetRoundId]
     );
   }
-
-  // NEW_ROUND: one pending notification per user across all competitions, so someone in four
-  // competitions gets one nudge rather than four. Needs a device token to be worth queueing.
-  await client.query(
-    `INSERT INTO mobile_notification_queue (user_id, type, competition_id, round_id, round_number, status, created_at)
-     SELECT cu.user_id, 'new_round', $1, $2, $3, 'pending', NOW()
-     FROM competition_user cu
-     JOIN app_user au ON au.id = cu.user_id
-     WHERE cu.competition_id = $1
-       AND cu.status = 'active'
-       AND cu.hidden IS NOT TRUE
-       AND au.email NOT LIKE '%@lms-guest.%'
-       AND EXISTS (SELECT 1 FROM device_tokens dt WHERE dt.user_id = cu.user_id)
-       AND NOT EXISTS (
-         SELECT 1 FROM mobile_notification_queue mnq
-         WHERE mnq.user_id = cu.user_id AND mnq.type = 'new_round' AND mnq.status = 'pending'
-       )`,
-    [competitionId, targetRoundId, targetRoundNumber]
-  );
-
-  // PICK_REMINDER: per competition, sent when within 24h of lock_time.
-  await client.query(
-    `INSERT INTO mobile_notification_queue (user_id, type, competition_id, round_id, round_number, status, created_at)
-     SELECT cu.user_id, 'pick_reminder', $1, $2, $3, 'pending', NOW()
-     FROM competition_user cu
-     JOIN app_user au ON au.id = cu.user_id
-     WHERE cu.competition_id = $1
-       AND cu.status = 'active'
-       AND cu.hidden IS NOT TRUE
-       AND au.email NOT LIKE '%@lms-guest.%'
-       AND EXISTS (SELECT 1 FROM device_tokens dt WHERE dt.user_id = cu.user_id)
-       AND NOT EXISTS (
-         SELECT 1 FROM mobile_notification_queue mnq
-         WHERE mnq.user_id = cu.user_id AND mnq.type = 'pick_reminder'
-           AND mnq.competition_id = $1 AND mnq.round_id = $2
-       )`,
-    [competitionId, targetRoundId, targetRoundNumber]
-  );
 
   await client.query(
     `INSERT INTO audit_log (competition_id, user_id, action, details)

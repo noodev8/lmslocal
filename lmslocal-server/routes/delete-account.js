@@ -202,7 +202,7 @@ router.post('/', verifyToken, async (req, res) => {
           // Delete all player progress for this competition
           await client.query('DELETE FROM player_progress WHERE competition_id = $1', [competitionId]);
           
-          // Delete queued push notifications for this competition
+          // Delete push notification records for this competition
           await client.query('DELETE FROM mobile_notification_queue WHERE competition_id = $1', [competitionId]);
 
           // Delete all email preferences for this competition
@@ -236,7 +236,7 @@ router.post('/', verifyToken, async (req, res) => {
       const deleteProgressResult = await client.query('DELETE FROM player_progress WHERE player_id = $1', [user_id]);
       deletionCounts.progress_records = deleteProgressResult.rowCount || 0;
 
-      // Queued push notifications and the devices they would be sent to. Device tokens matter
+      // Their push notification records and the devices a push would go to. Device tokens matter
       // beyond tidiness: a token left behind can be reissued by the OS to another install, so a
       // deleted user's row is a route to someone else's phone.
       await client.query('DELETE FROM mobile_notification_queue WHERE user_id = $1', [user_id]);

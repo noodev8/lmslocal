@@ -23,7 +23,7 @@ Success Response (ALWAYS HTTP 200):
   "removed_data": {
     "picks_deleted": 5,               // integer, number of picks deleted
     "progress_deleted": 3,            // integer, number of progress records deleted
-    "notifications_deleted": 2,       // integer, number of pending push notifications deleted
+    "notifications_deleted": 2,       // integer, number of push notification records deleted
     "email_queue_deleted": 1,         // integer, number of pending emails deleted
     "email_preferences_deleted": 3,   // integer, number of email preference records deleted
     "total_records_deleted": 35       // integer, total records removed
@@ -246,7 +246,7 @@ router.post('/', verifyToken, async (req, res) => {
       `;
       const progressResult = await client.query(progressDeleteQuery, [player_id, competition_id]);
 
-      // 4. Delete pending mobile notifications for this player in this competition
+      // 4. Delete push notification records for this player in this competition
       const notificationsDeleteQuery = `
         DELETE FROM mobile_notification_queue
         WHERE user_id = $1 AND competition_id = $2

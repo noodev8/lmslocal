@@ -7,7 +7,7 @@ Purpose: Processes all results for the current round. Handles player elimination
          Only processes fixtures that have results set but are not yet marked as processed.
 
          SHARED LOGIC WARNING: the processing block below (eliminations, no-pick penalties,
-         competition completion, notification cleanup, audit log) is intentionally kept
+         competition completion, audit log) is intentionally kept
          identical to routes/admin/push-results-to-competitions.js. That route runs the same
          steps for automated (fixture_service = true) competitions. If you change the rules
          here - the lives/elimination threshold in particular - change it there too, or the two
@@ -385,22 +385,6 @@ router.post('/', verifyToken, async (req, res) => {
       if (await promoteCompetitionIfStarted(client, competitionIdInt)) {
         competitionStatus = 'ACTIVE';
       }
-
-      // === CLEANUP OLD NOTIFICATIONS FOR THIS ROUND ===
-      // Mark any pending 'new_round' or 'pick_reminder' for this round as skipped
-      // They're no longer relevant since results are being processed
-      await client.query(`
-        UPDATE mobile_notification_queue
-        SET status = 'skipped', sent_at = NOW()
-        WHERE competition_id = $1
-          AND round_id = $2
-          AND type IN ('new_round', 'pick_reminder')
-          AND status = 'pending'
-      `, [competitionIdInt, roundId]);
-
-      // NOTE: No 'results' notification queued here - the 'new_round' notification
-      // (sent when fixtures are added) now serves this purpose with message
-      // "Results are in - see how you did!"
 
       // ========================================
       // ADD AUDIT LOG ENTRY

@@ -30,6 +30,10 @@ exactly as it was before Matchday.
 Pick reminder belongs to the player.game group, so switching Game emails off stops it. That
 costs the player a life when they then miss a pick, and it is deliberate - see the note in
 emailPreference.js.
+
+2026-11-27: a push notification goes with the email to anyone who has the app (pushFor, sent by
+services/emailPush.js). Nothing above changes for it - no rule here is the push's own. Opting out
+of Game emails stops the push too, since the push only follows a sent email.
 =======================================================================================================================================
 */
 
@@ -517,6 +521,76 @@ function subjectForData(templateData) {
 }
 
 /**
+ * The push notification that goes WITH this email, for someone who has the app.
+ *
+ * THE EMAIL IS THE MASTER (Andreas, 2026-11-27). The push is not a second message with its own
+ * rules or words: services/emailPush.js sends it only when this email was sent, and it says what
+ * the email says, cut to fit a lock screen. Title is the email's subject - it already leads with the
+ * deadline because that is what survives truncation, which is just as true on a phone's lock screen
+ * - and the body is the email's opening line, copied from buildPickReminderEmail and
+ * buildBundledReminderEmail in services/emailService.js. Change the wording there, change it here.
+ *
+ * THE TAP GOES WHERE THE EMAIL'S BUTTON GOES. One competition: its Play tab - for LMS the pick, for
+ * Matchday the predictions, which is what `pick_reminder` routes to in the app's
+ * notification_routes.dart for either game. More than one: the email sends them to the dashboard, so
+ * the push carries no competition_id and the app simply opens; it lands on the dashboard from cold,
+ * and a running app stays where it is (docs/mobile-notifications.md §3).
+ *
+ * Matchday included from the start: the app that knows Matchday is 2.1.1, app_version's minimum on
+ * both platforms since before this was written, and opening an older one forces the update first
+ * (routes/check-app-version.js), notification taps included.
+ *
+ * @param {object} templateData - as built by buildTemplateData
+ * @returns {{type: string, title: string, body: string, data: object, record: object}}
+ *          `record` is the competition and round the record row is filed under - the lead item,
+ *          the earliest deadline, even when the tap itself names no competition.
+ */
+function pushFor(templateData) {
+  const { items } = templateData;
+  const title = subjectForData(templateData);
+
+  // One LMS competition, the pre-Matchday shape: no `items`.
+  if (!items) {
+    const record = {
+      competition_id: templateData.competition_id,
+      round_id: templateData.round_id,
+      round_number: templateData.round_number
+    };
+    return {
+      type: 'pick_reminder',
+      title,
+      body: `Time to make your pick for Round ${templateData.round_number}.`,
+      data: record,
+      record
+    };
+  }
+
+  const lead = items[0];
+  const record = {
+    competition_id: lead.competition_id,
+    round_id: lead.round_id,
+    round_number: lead.round_number
+  };
+
+  if (items.length === 1) {
+    const body = lead.game_type === 'matchday'
+      ? `Make your predictions for ${lead.rounds_total
+          ? `Round ${lead.round_number} of ${lead.rounds_total}`
+          : `Round ${lead.round_number}`}.`
+      : `Time to make your pick for Round ${lead.round_number}.`;
+    return { type: 'pick_reminder', title, body, data: record, record };
+  }
+
+  return {
+    type: 'pick_reminder',
+    title,
+    body: `${items.length} of your competitions are waiting on you this round.`,
+    data: {},
+    record
+  };
+}
+
+/**
  * Queue one reminder, and open its tracking row. One queue row per competition in the email - see
  * queueBundle in services/emailBundle.js.
  *
@@ -544,6 +618,7 @@ module.exports = {
   subjectFor,
   matchdaySubjectFor,
   subjectForData,
+  pushFor,
   findCandidates,
   findLmsCandidates,
   buildTemplateData,

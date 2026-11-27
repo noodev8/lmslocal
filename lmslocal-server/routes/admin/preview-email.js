@@ -38,9 +38,12 @@ Success Response (ALWAYS HTTP 200):
       "display_name": "Brookfield",    // string
       "round_number": 1,               // integer or null, only meaningful for round-based emails
       "missed_pick": false,            // boolean or null, null when the email has no pick behind it
-      "is_organiser": false            // boolean or null, null when the email does not answer it
+      "is_organiser": false,           // boolean or null, null when the email does not answer it
+      "has_app": true                  // boolean or null, null when the email sends no push
     }
   ],
+  "app_count": 2,                      // integer or null - of recipient_count, how many would also
+                                       //   get a push; null when the email sends no push
   "truncated": false,                  // boolean, true if more recipients than listed
   "since_label": "Joined",             // string, heading for the `since` column on this email
   "sample": {                          // object or null, null when nobody qualifies
@@ -71,6 +74,7 @@ const { verifyAdminToken } = require('../../middleware/admin-auth');
 const { entryFor } = require('../../services/emailCatalog');
 const { logApiCall } = require('../../utils/apiLogger');
 const { findRecentlyEmailed, wouldSend } = require('../../services/emailQuiet');
+const { usersWithApp } = require('../../services/emailPush');
 
 const router = express.Router();
 
@@ -209,9 +213,17 @@ router.post('/', verifyAdminToken, async (req, res) => {
         recipient_count: 0,
         recipients: [],
         truncated: false,
+        app_count: entry.push ? 0 : null,
         sample: null
       });
     }
+
+    /*
+    Who has the app, for an email that pushes with it. One query over every candidate, not just the
+    listed ones, so app_count is true of the whole send. Null - not empty - on every other email, so
+    the screen can tell "nobody has the app" from "this email has no push".
+    */
+    const withApp = entry.push ? await usersWithApp(candidates.map((c) => c.user_id)) : null;
 
     /*
     Build the sample from real data rather than a fixture. buildTemplateData writes nothing -
@@ -286,9 +298,12 @@ router.post('/', verifyAdminToken, async (req, res) => {
         */
         is_organiser: c.is_organiser === undefined || c.is_organiser === null
           ? null
-          : c.is_organiser === true
+          : c.is_organiser === true,
+        // Would get a push with the email. Same null convention as the two above.
+        has_app: withApp ? withApp.has(c.user_id) : null
       })),
       truncated: candidates.length > listCap,
+      app_count: withApp ? candidates.filter((c) => withApp.has(c.user_id)).length : null,
       // Heading for the `since` column - see SINCE_LABELS. One per response: a preview is
       // always one email type, so every row in it is measuring the same thing.
 

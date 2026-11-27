@@ -27,6 +27,7 @@ const { query } = require('../database');
 const { typeFor } = require('./emailCatalog');
 const { insertSkipRows } = require('./emailSkip');
 const { findRecentlyEmailed, MAGIC_SEND_MARK, MAGIC_SEND_REASON } = require('./emailQuiet');
+const { pushWithEmails } = require('./emailPush');
 
 /**
  * Send one test copy of an email to the test address, writing nothing.
@@ -40,11 +41,13 @@ const { findRecentlyEmailed, MAGIC_SEND_MARK, MAGIC_SEND_REASON } = require('./e
  * @param {object} candidate - the candidate to build the sample from, normally the first
  * @param {object} [options]
  * @param {string} [options.testRecipient] - override the address, else EMAIL_TEST_RECIPIENT
- * @returns {Promise<{success: boolean, error?: string}>}
+ * @returns {Promise<{success: boolean, error?: string, templateData: object}>}
  */
 async function sendTest(entry, candidate, options = {}) {
   const templateData = await entry.service.buildTemplateData(candidate);
-  return entry.send(candidate.user_email, templateData, { testMode: true, ...options });
+  const result = await entry.send(candidate.user_email, templateData, { testMode: true, ...options });
+  // Handed back so a test push can be built from the very data the test email was.
+  return { ...result, templateData };
 }
 
 /**
@@ -65,7 +68,9 @@ async function sendTest(entry, candidate, options = {}) {
  * @param {object} [options]
  * @param {number} [options.cap] - stop after this many, leaving the rest for the next run
  * @param {function} [options.onProgress] - called per person, for a script that wants to log
- * @returns {Promise<{sent: number, failed: number, skipped: number, attempted: number, capped: boolean}>}
+ * @param {boolean} [options.push] - also push to the app, for an entry that carries `push`
+ * @returns {Promise<{sent: number, failed: number, skipped: number, attempted: number, capped: boolean,
+ *                    pushed: number, push_failed: number}>}
  */
 /*
 Every queue row one email stands for. Almost every email is one row; the pick reminder writes one
@@ -76,6 +81,14 @@ const queueIdsOf = (queued) => queued.queue_ids || [queued.queue_id];
 
 async function sendToAll(entry, candidates, options = {}) {
   const { cap = null, onProgress = null } = options;
+
+  /*
+  PUSH IS OPT-IN PER CALL, and only the admin route opts in. scripts/email-sweep.js passes nothing,
+  so the day a crontab line comes back it sends emails exactly as before and no pushes - when a push
+  may land on someone's phone is a decision still to be made (services/emailPush.js).
+  */
+  const withPush = options.push === true && typeof entry.push === 'function';
+  const emailed = [];
 
   const targets = Number.isInteger(cap) && cap > 0 ? candidates.slice(0, cap) : candidates;
   const capped = targets.length < candidates.length;
@@ -135,6 +148,8 @@ async function sendToAll(entry, candidates, options = {}) {
       );
       sent++;
       quiet.add(candidate.user_id);
+      // Only a SENT email earns a push. Held, failed and unqueued people never reach this line.
+      if (withPush) emailed.push({ candidate, templateData: queued.template_data });
       if (onProgress) onProgress({ candidate, ok: true });
     } else {
       /*
@@ -162,6 +177,12 @@ async function sendToAll(entry, candidates, options = {}) {
   here must not be able to undo one; the worst case is that the skip rows are missing and those
   people are simply candidates again on the next run, which is the safe direction.
   */
+  /*
+  After the loop, as one batch, rather than inside it: one token lookup, one call to Firebase, one
+  insert. pushWithEmails never throws - the emails above have already gone and stay gone.
+  */
+  const pushResult = withPush ? await pushWithEmails(entry, emailed) : { pushed: 0, failed: 0 };
+
   if (skipped.length > 0) {
     const emailType = typeFor(entry);
 
@@ -181,7 +202,15 @@ async function sendToAll(entry, candidates, options = {}) {
     await insertSkipRows(emailType, skipped, MAGIC_SEND_REASON, MAGIC_SEND_MARK);
   }
 
-  return { sent, failed, skipped: skipped.length, attempted: targets.length, capped };
+  return {
+    sent,
+    failed,
+    skipped: skipped.length,
+    attempted: targets.length,
+    capped,
+    pushed: pushResult.pushed,
+    push_failed: pushResult.failed
+  };
 }
 
 module.exports = { sendTest, sendToAll };

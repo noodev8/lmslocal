@@ -2,7 +2,12 @@
 =======================================================================================================================================
 FCM Service - Firebase Cloud Messaging Integration
 =======================================================================================================================================
-Purpose: Handle push notifications via Firebase Cloud Messaging for the mobile app
+Purpose: Deliver push notifications to the mobile app. Transport only - it is handed finished
+         messages and knows nothing about who should get one or what it says.
+
+Since 2026-11-27 the only caller is services/emailPush.js: a push goes WITH an email, built from
+that email's data, never on its own (docs/mobile-notifications.md §1). The fixed per-type wording
+that used to live here went with the old queue; the words now come from the email's service.
 =======================================================================================================================================
 */
 
@@ -59,23 +64,6 @@ const initializeFirebase = () => {
   }
 };
 
-// ===========================================================================================================
-// Notification Messages
-// ===========================================================================================================
-// Predefined messages for each notification type
-// ===========================================================================================================
-
-const NOTIFICATION_MESSAGES = {
-  new_round: {
-    title: 'Results Are In',
-    body: 'Results are in - see how you did!'
-  },
-  pick_reminder: {
-    title: 'Pick Reminder',
-    body: "Don't forget to make your pick before it locks!"
-  }
-};
-
 /**
  * Build the data payload the app uses to decide where a tap should land.
  *
@@ -104,109 +92,93 @@ const buildDataPayload = (notificationType, data) => {
   return payload;
 };
 
+/** One FCM message for one device. */
+const buildMessage = ({ token, type, title, body, data }) => ({
+  token,
+  notification: { title, body },
+  // Where a tap should land. Delivered to the app on both platforms via
+  // onMessageOpenedApp (backgrounded) and getInitialMessage (cold start).
+  data: buildDataPayload(type, data),
+  android: {
+    priority: 'high',
+    notification: {
+      sound: 'default',
+      // Must match the channel the app declares as its default in
+      // AndroidManifest.xml. A channel id that does not exist on the device is not a
+      // formatting detail - Android will not display the notification at all.
+      channelId: 'lms_notifications'
+    }
+  },
+  apns: {
+    payload: {
+      aps: {
+        sound: 'default',
+        badge: 1
+      }
+    }
+  }
+});
+
+// The token is dead - uninstalled, or the app's data cleared. Firebase will never take it again.
+const DEAD_TOKEN_CODES = new Set([
+  'messaging/invalid-registration-token',
+  'messaging/registration-token-not-registered'
+]);
+
+// sendEach's own ceiling per call.
+const BATCH_LIMIT = 500;
+
 /**
- * Send a push notification to a single device
- * @param {string} fcmToken - The device's FCM token
- * @param {string} notificationType - 'new_round' | 'pick_reminder'
- * @param {Object} [data] - Routing context: competition_id, round_id, round_number
- * @returns {Promise<{success: boolean, error?: string}>}
+ * Send a batch of messages, one per device, and report on each.
+ *
+ * sendEach rather than a call per device: one round trip per 500 rather than per phone, and a
+ * failure on one token does not stop the rest.
+ *
+ * @param {Array<{token: string, type: string, title: string, body: string, data?: object}>} messages
+ * @returns {Promise<{ok: boolean, results: Array<{success: boolean, dead: boolean, error?: string}>, error?: string}>}
+ *          `results` lines up with `messages`. ok is false only when nothing could be attempted.
  */
-const sendNotification = async (fcmToken, notificationType, data = {}) => {
-  // Ensure Firebase is initialized
+const sendPushes = async (messages) => {
+  if (messages.length === 0) return { ok: true, results: [] };
+
   if (!initializeFirebase()) {
-    return { success: false, error: 'Firebase not initialized' };
-  }
-
-  const messageConfig = NOTIFICATION_MESSAGES[notificationType];
-  if (!messageConfig) {
-    return { success: false, error: `Unknown notification type: ${notificationType}` };
-  }
-
-  try {
-    const message = {
-      token: fcmToken,
-      notification: {
-        title: messageConfig.title,
-        body: messageConfig.body
-      },
-      // Where a tap should land. Delivered to the app on both platforms via
-      // onMessageOpenedApp (backgrounded) and getInitialMessage (cold start).
-      data: buildDataPayload(notificationType, data),
-      // Android-specific configuration
-      android: {
-        priority: 'high',
-        notification: {
-          sound: 'default',
-          // Must match the channel the app declares as its default in
-          // AndroidManifest.xml. A channel id that does not exist on the device is not a
-          // formatting detail - Android will not display the notification at all.
-          channelId: 'lms_notifications'
-        }
-      },
-      // iOS-specific configuration
-      apns: {
-        payload: {
-          aps: {
-            sound: 'default',
-            badge: 1
-          }
-        }
-      }
+    return {
+      ok: false,
+      error: 'Firebase not initialized',
+      results: messages.map(() => ({ success: false, dead: false, error: 'Firebase not initialized' }))
     };
-
-    const response = await getMessaging().send(message);
-    return { success: true, messageId: response };
-  } catch (error) {
-    console.error('FCM Service: Error sending notification:', error.message);
-
-    // Check for invalid token errors
-    if (error.code === 'messaging/invalid-registration-token' ||
-        error.code === 'messaging/registration-token-not-registered') {
-      return { success: false, error: 'invalid_token', shouldRemoveToken: true };
-    }
-
-    return { success: false, error: error.message };
   }
-};
 
-/**
- * Send notifications to multiple devices for the same user
- * @param {string[]} fcmTokens - Array of FCM tokens for the user's devices
- * @param {string} notificationType - 'new_round' | 'pick_reminder'
- * @param {Object} [data] - Routing context: competition_id, round_id, round_number
- * @returns {Promise<{success: boolean, sent: number, failed: number, invalidTokens: string[]}>}
- */
-const sendNotificationToUser = async (fcmTokens, notificationType, data = {}) => {
-  const results = {
-    success: true,
-    sent: 0,
-    failed: 0,
-    invalidTokens: []
-  };
+  const results = [];
 
-  // Send to all user's devices
-  for (const token of fcmTokens) {
-    const result = await sendNotification(token, notificationType, data);
+  for (let i = 0; i < messages.length; i += BATCH_LIMIT) {
+    const chunk = messages.slice(i, i + BATCH_LIMIT);
 
-    if (result.success) {
-      results.sent++;
-    } else {
-      results.failed++;
-      if (result.shouldRemoveToken) {
-        results.invalidTokens.push(token);
+    try {
+      const response = await getMessaging().sendEach(chunk.map(buildMessage));
+      for (const r of response.responses) {
+        results.push(r.success
+          ? { success: true, dead: false }
+          : {
+              success: false,
+              dead: DEAD_TOKEN_CODES.has(r.error?.code),
+              error: r.error?.message || 'unknown'
+            });
+      }
+    } catch (error) {
+      // The whole call failed - credentials, network. Every message in the chunk is a failure.
+      console.error('FCM Service: sendEach failed:', error.message);
+      for (let j = 0; j < chunk.length; j++) {
+        results.push({ success: false, dead: false, error: error.message });
       }
     }
   }
 
-  // Consider success if at least one notification was sent
-  results.success = results.sent > 0;
-
-  return results;
+  return { ok: true, results };
 };
 
 module.exports = {
   initializeFirebase,
-  sendNotification,
-  sendNotificationToUser,
-  NOTIFICATION_MESSAGES
+  buildDataPayload,
+  sendPushes
 };

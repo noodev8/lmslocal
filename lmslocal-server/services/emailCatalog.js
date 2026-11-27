@@ -10,7 +10,7 @@ three places, and any one of them left behind would have been a screen offering 
 refused - or worse, a count from one email and a send from another.
 
 Adding an email is now one entry here plus its service and template. Nothing in the routes
-changes.
+changes. Giving one a push notification is a `push` function on its entry - see pick_reminder.
 
 WHICH EMAILS THE CRON SENDS IS NOT RECORDED HERE, deliberately (2026-08-18). An email is on the
 cron when it has a line in the VPS crontab and off when that line is commented out - see
@@ -79,12 +79,17 @@ const CATALOG = {
   Both games since 2026-11-26, and one email per PERSON rather than per competition: a candidate
   carries `items`, and queueCandidate returns `queue_ids` for every competition the one email
   covers. docs/matchday.md §9.1 has the why.
+
+  `push` (2026-11-27): a push notification goes with the email to anyone who has the app, built
+  from the same template data. The only entry carrying one. services/emailPush.js has the rule -
+  the push follows a SENT email and nothing else - and docs/mobile-notifications.md §1 the flow.
   */
   pick_reminder: {
     scoped: true,
     service: pickReminder,
     build: buildPickReminderEmail,
-    send: sendPickReminderEmail
+    send: sendPickReminderEmail,
+    push: pickReminder.pushFor
   },
   /*
   The organiser's half of pick_reminder: a round locking within three hours with too many players

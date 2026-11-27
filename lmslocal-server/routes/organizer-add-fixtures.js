@@ -342,76 +342,8 @@ router.post('/', verifyToken, async (req, res) => {
         ]);
       }
 
-      // === QUEUE MOBILE NOTIFICATIONS ===
-      // Queue 'new_round' and 'pick_reminder' notifications for all active players
-      // new_round: sends immediately on next cron run - message is "Results are in - see how you did!"
-      //   - Round 1: excludes the creator (they just set up the competition)
-      //   - Round 2+: includes everyone (organizer may have delegated fixture creation)
-      // pick_reminder: sends when within 24hrs of lock_time (includes everyone)
-      // Excludes guest users (email starts with 'lms-guest')
-
-      // NEW_ROUND: Only insert if user has no pending new_round notification (any competition)
-      // This avoids spamming users in multiple competitions with separate notifications
-      // Also requires user has a device token registered (no point queueing if they can't receive)
-      await client.query(`
-        INSERT INTO mobile_notification_queue (user_id, type, competition_id, round_id, round_number, status, created_at)
-        SELECT cu.user_id, 'new_round', $1, $2, $3, 'pending', NOW()
-        FROM competition_user cu
-        JOIN app_user au ON au.id = cu.user_id
-        WHERE cu.competition_id = $1
-          AND cu.status = 'active'
-          AND cu.hidden IS NOT TRUE
-          AND au.email NOT LIKE '%@lms-guest.%'
-          AND ($3 > 1 OR cu.user_id != $4)
-          AND EXISTS (SELECT 1 FROM device_tokens dt WHERE dt.user_id = cu.user_id)
-          AND NOT EXISTS (
-            SELECT 1 FROM mobile_notification_queue mnq
-            WHERE mnq.user_id = cu.user_id
-              AND mnq.type = 'new_round'
-              AND mnq.status = 'pending'
-          )
-      `, [competitionIdInt, roundId, roundNumber, user_id]);
-
-      /* FUTURE: Per-competition new_round notifications (commented out for now)
-      await client.query(`
-        INSERT INTO mobile_notification_queue (user_id, type, competition_id, round_id, round_number, status, created_at)
-        SELECT cu.user_id, 'new_round', $1, $2, $3, 'pending', NOW()
-        FROM competition_user cu
-        JOIN app_user au ON au.id = cu.user_id
-        WHERE cu.competition_id = $1
-          AND cu.status = 'active'
-          AND cu.hidden IS NOT TRUE
-          AND au.email NOT LIKE '%@lms-guest.%'
-          AND ($3 > 1 OR cu.user_id != $4)
-          AND NOT EXISTS (
-            SELECT 1 FROM mobile_notification_queue mnq
-            WHERE mnq.user_id = cu.user_id
-              AND mnq.type = 'new_round'
-              AND mnq.competition_id = $1
-              AND mnq.round_id = $2
-          )
-      `, [competitionIdInt, roundId, roundNumber, user_id]);
-      */
-
-      // PICK_REMINDER: Per-competition, requires device token
-      await client.query(`
-        INSERT INTO mobile_notification_queue (user_id, type, competition_id, round_id, round_number, status, created_at)
-        SELECT cu.user_id, 'pick_reminder', $1, $2, $3, 'pending', NOW()
-        FROM competition_user cu
-        JOIN app_user au ON au.id = cu.user_id
-        WHERE cu.competition_id = $1
-          AND cu.status = 'active'
-          AND cu.hidden IS NOT TRUE
-          AND au.email NOT LIKE '%@lms-guest.%'
-          AND EXISTS (SELECT 1 FROM device_tokens dt WHERE dt.user_id = cu.user_id)
-          AND NOT EXISTS (
-            SELECT 1 FROM mobile_notification_queue mnq
-            WHERE mnq.user_id = cu.user_id
-              AND mnq.type = 'pick_reminder'
-              AND mnq.competition_id = $1
-              AND mnq.round_id = $2
-          )
-      `, [competitionIdInt, roundId, roundNumber]);
+      // No push notifications queued here. A pick reminder push goes with the pick reminder
+      // email, sent from the admin screen (services/emailPush.js).
 
       // Add audit log entry
       await client.query(`

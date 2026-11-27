@@ -229,12 +229,8 @@ router.post('/', verifyToken, async (req, res) => {
           throw new Error('ROUND_NO_LONGER_CLEARABLE');
         }
 
-        // Queued sends for a round that is about to stop existing would be wrong to deliver.
+        // Queued emails for a round that is about to stop existing would be wrong to deliver.
         // Only pending rows go - sent history stays as a record of what players received.
-        await client.query(
-          `DELETE FROM mobile_notification_queue WHERE round_id = $1 AND status = 'pending'`,
-          [roundId]
-        );
         await client.query(
           `DELETE FROM email_queue WHERE round_id = $1 AND status = 'pending'`,
           [roundId]

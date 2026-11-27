@@ -40,6 +40,7 @@ No test framework. Verify with a build/type check, and against the API with the 
 | Billing for resets and re-buys | `docs/reset-billing.md`, `docs/re-buys.md` |
 | Bots | `docs/BOTS-Management.md` |
 | Sending email | `docs/email/email-operations.md` |
+| Push notifications to the app (they go with an email) | `docs/mobile-notifications.md` |
 
 Code comments cite these docs by section (`§3`). Keep section numbers stable when editing them.
 

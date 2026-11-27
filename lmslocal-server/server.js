@@ -194,7 +194,6 @@ const organizerUpdatePlayerPermissionsRoute = require('./routes/organizer-update
 // Mobile App Routes
 const checkAppVersionRoute = require('./routes/check-app-version');
 const registerDeviceTokenRoute = require('./routes/register-device-token');
-const processMobileNotificationsRoute = require('./routes/process-mobile-notifications');
 
 const app = express();
 const PORT = process.env.PORT || 3015;
@@ -625,7 +624,6 @@ app.use('/organizer-update-player-permissions', organizerUpdatePlayerPermissions
 // Mobile App API Routes
 app.use('/check-app-version', checkAppVersionRoute);
 app.use('/register-device-token', registerDeviceTokenRoute);
-app.use('/process-mobile-notifications', processMobileNotificationsRoute);
 
 // Default route for testing
 app.get('/', (req, res) => {

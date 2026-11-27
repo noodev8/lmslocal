@@ -167,7 +167,7 @@ router.post('/', verifyToken, async (req, res) => {
         `;
         const progressResult = await client.query(progressDeleteQuery, [user_id, competition_id]);
 
-        // 4. Delete pending mobile notifications
+        // 4. Delete their push notification records for this competition
         const notificationsDeleteQuery = `
           DELETE FROM mobile_notification_queue
           WHERE user_id = $1 AND competition_id = $2

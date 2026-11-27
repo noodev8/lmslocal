@@ -18,7 +18,10 @@ THREE NUMBERS, NOT ONE
   sent_recently  actually delivered in the last SENT_WINDOW_DAYS days
   competitions   how many distinct competitions the waiting recipients span
 
-They are different questions and a single number hides the other two. `competitions` is there
+They are different questions and a single number hides the other two.
+
+A fourth, `with_app`, on an email that sends a push with it (pick_reminder): how many of `waiting`
+would also get a push. Absent on every other email. `competitions` is there
 because "14 waiting across 5 competitions" is the answer the operator actually wants, and a bare
 14 only invites the question. `sent_recently` answers the other half - whether an email with a
 count of zero is finished or has simply never gone out.
@@ -45,7 +48,9 @@ Success Response (ALWAYS HTTP 200):
     "welcome": {
       "waiting": 3,                    // integer, qualify now
       "sent_recently": 1,              // integer, delivered in the last 7 days
-      "competitions": 2                // integer, competitions the waiting span; 0 when unscoped
+      "competitions": 2,               // integer, competitions the waiting span; 0 when unscoped
+      "with_app": 1                    // integer, of waiting, how many have the app - only on an
+                                       //   email that pushes
     }
   }
 }
@@ -71,6 +76,7 @@ const { verifyAdminToken } = require('../../middleware/admin-auth');
 const { CATALOG } = require('../../services/emailCatalog');
 const { logApiCall } = require('../../utils/apiLogger');
 const { findRecentlyEmailed, wouldSend } = require('../../services/emailQuiet');
+const { usersWithApp } = require('../../services/emailPush');
 
 const router = express.Router();
 
@@ -152,6 +158,11 @@ router.post('/', verifyAdminToken, async (req, res) => {
           ? new Set(candidates.map((c) => c.competition_id)).size
           : 0
       };
+
+      if (entry.push) {
+        const withApp = await usersWithApp(candidates.map((c) => c.user_id));
+        counts[emailType].with_app = candidates.filter((c) => withApp.has(c.user_id)).length;
+      }
     }
 
     return res.json({

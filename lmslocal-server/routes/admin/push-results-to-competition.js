@@ -24,8 +24,7 @@ Purpose: Pushes the staged results in fixture_load to ONE competition and proces
                       turn and sees each result before moving on. Nothing compounds.
 
          SHARED LOGIC WARNING: the processing block below (outcome, player_progress,
-         lives/elimination threshold, no-pick penalties, competition completion, notification
-         cleanup, audit log) is intentionally kept identical to routes/organizer-process-results.js.
+         lives/elimination threshold, no-pick penalties, competition completion, audit log) is intentionally kept identical to routes/organizer-process-results.js.
          That route runs the same steps for organiser-managed (fixture_service = false)
          competitions. If you change the rules here - the lives/elimination threshold in
          particular - change them there too, or the two halves of the customer base end up
@@ -498,22 +497,6 @@ router.post('/', verifyAdminToken, async (req, res) => {
       if (await promoteCompetitionIfStarted(client, competitionId)) {
         competitionStatus = 'ACTIVE';
       }
-
-      // NOTE: No 'results' notification queued here - the 'new_round' notification
-      // (sent when fixtures are added) now serves this purpose with message
-      // "Results are in - see how you did!"
-
-      // === CLEANUP OLD NOTIFICATIONS FOR THIS ROUND ===
-      // Mark any pending 'new_round' or 'pick_reminder' for this round as skipped - they're
-      // no longer relevant now results are processed.
-      await client.query(`
-        UPDATE mobile_notification_queue
-        SET status = 'skipped', sent_at = NOW()
-        WHERE competition_id = $1
-          AND round_id = $2
-          AND type IN ('new_round', 'pick_reminder')
-          AND status = 'pending'
-      `, [competitionId, roundId]);
 
       // ADD AUDIT LOG ENTRY - user_id NULL, same convention as fixtureService.js's
       // "Fixtures Pushed" entry: this was triggered by the fixture service, not a person.

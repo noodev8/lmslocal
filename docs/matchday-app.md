@@ -330,15 +330,13 @@ Reference: `lmslocal-web/src/app/game/[id]/table/page.tsx`, and `docs/matchday.m
 
 ## 12. Notifications
 
-- **There are no Matchday push notifications, and an app update alone will not create any.**
-  `routes/process-mobile-notifications.js` marks every queued notification for a non-LMS
-  competition `skipped`, whatever the client. The rows that queue them are LMS events (new round,
-  pick reminder, results).
-- So a Matchday player in the app gets **no** "new round" or "locks soon" prompt. That is a known
-  gap on the web too: Matchday has no emails either (`docs/matchday.md` §9). Designing Matchday
-  notifications is **server work**: wording in the Matchday vocabulary, which events, and lifting
-  the guard per type. It is not part of the app change. Raise it with the owner rather than
-  working around it.
+- **Since 2026-11-27 the pick reminder's push covers Matchday.** A push goes with an email, in
+  that email's words (`docs/mobile-notifications.md` §1), so a Matchday player with the app gets
+  "Predict by …" when their reminder email is sent. The tap is `type: pick_reminder` with the
+  competition id, which `notification_routes.dart` sends to `?tab=play` — the predictions tab, via
+  `CompetitionEntryPage`. No app change was needed.
+- There is no other Matchday push, because no other email carries one yet. Adding one is server
+  work: a `push` on that email's catalog entry.
 
 ---
 

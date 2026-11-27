@@ -42,6 +42,13 @@ reach nobody.
 
 test_mode defaults to TRUE when the field is absent. A caller that forgets it gets the harmless
 outcome rather than a live send to the whole competition.
+
+PUSH (2026-11-27). With push true, on an email whose catalog entry carries `push` (pick_reminder
+only, so far), everyone whose email is SENT in this press also gets a push notification if they
+have the app - services/emailPush.js. Nobody else does: held by the quiet period, failed, or not
+ticked means no push either. In test mode the push goes to the signed-in admin's own phone, built
+from the same candidate as the test email, and nothing is written. Defaults to FALSE, unlike
+test_mode's safe default - an omitted field must never put something on a player's lock screen.
 =======================================================================================================================================
 Request Payload:
 {
@@ -51,7 +58,8 @@ Request Payload:
   "expected_count": 3,                 // integer, optional - refuses a live send if it has moved
   "recipients": [                      // array, optional - send to only these, omit for everyone
     { "user_id": 41, "competition_id": 172 }
-  ]
+  ],
+  "push": true                         // boolean, optional - also push to the app; defaults to false
 }
 
 Success Response (ALWAYS HTTP 200):
@@ -63,6 +71,9 @@ Success Response (ALWAYS HTTP 200):
   "skipped_count": 2,                  // integer, marked as sent by magic send, live mode only
   "candidate_count": 3,                // integer, who qualified
   "sent_to": "aandreou25@gmail.com",   // string or null, set in test mode only
+  "push_sent_count": 1,                // integer, people (live) or devices (test) a push reached;
+                                       //   absent when no push was asked for
+  "push_failed_count": 0,              // integer, same units, absent when no push was asked for
   "message": "..."                     // string, plain summary for the screen
 }
 
@@ -88,6 +99,7 @@ const express = require('express');
 const { verifyAdminToken } = require('../../middleware/admin-auth');
 const { entryFor } = require('../../services/emailCatalog');
 const { sendTest, sendToAll } = require('../../services/emailSweep');
+const { sendTestPush } = require('../../services/emailPush');
 const { logApiCall } = require('../../utils/apiLogger');
 const { findRecentlyEmailed, wouldSend } = require('../../services/emailQuiet');
 
@@ -97,7 +109,7 @@ router.post('/', verifyAdminToken, async (req, res) => {
   logApiCall('admin/send-emails');
 
   try {
-    const { email_type, competition_id, test_mode, expected_count, recipients } = req.body;
+    const { email_type, competition_id, test_mode, expected_count, recipients, push } = req.body;
 
     const entry = entryFor(email_type);
 
@@ -124,6 +136,9 @@ router.post('/', verifyAdminToken, async (req, res) => {
 
     // Absent means test. Only an explicit false goes live.
     const testMode = test_mode !== false;
+
+    // Absent means no push. Only an explicit true, on an email that has one.
+    const withPush = push === true && typeof entry.push === 'function';
 
     const candidates = await entry.service.findCandidates(scopeId ? { competition_id: scopeId } : {});
 
@@ -197,6 +212,23 @@ router.post('/', verifyAdminToken, async (req, res) => {
 
       const result = await sendTest(entry, first);
 
+      /*
+      The test push goes to whoever is signed in to admin - their own phone, not the test email
+      address's owner, because a phone cannot be addressed by an email. Sent even when the test email
+      failed: they are separate checks, and the operator learns more from one working than neither.
+      */
+      let pushNote = '';
+      let pushCounts = {};
+      if (withPush) {
+        const testPush = await sendTestPush(entry, result.templateData, req.admin.id);
+        pushCounts = { push_sent_count: testPush.sent, push_failed_count: testPush.devices - testPush.sent };
+        pushNote = testPush.error
+          ? ` Test push failed: ${testPush.error}.`
+          : testPush.devices === 0
+            ? ' No test push: your account has no app device registered.'
+            : ` Test push sent to ${testPush.sent} of your ${testPush.devices} device${testPush.devices === 1 ? '' : 's'}.`;
+      }
+
       if (!result.success) {
         console.error('admin/send-emails test send failed:', result.error);
         return res.json({
@@ -206,7 +238,8 @@ router.post('/', verifyAdminToken, async (req, res) => {
           sent_count: 0,
           failed_count: 1,
           sent_to: null,
-          message: `Test send failed: ${result.error}`
+          ...pushCounts,
+          message: `Test send failed: ${result.error}.${pushNote}`
         });
       }
 
@@ -217,7 +250,8 @@ router.post('/', verifyAdminToken, async (req, res) => {
         sent_count: 1,
         failed_count: 0,
         sent_to: process.env.EMAIL_TEST_RECIPIENT || 'aandreou25@gmail.com',
-        message: `Test copy of ${first.user_display_name}'s email sent. ${targets.length} real recipient${targets.length === 1 ? '' : 's'} untouched.`
+        ...pushCounts,
+        message: `Test copy of ${first.user_display_name}'s email sent. ${targets.length} real recipient${targets.length === 1 ? '' : 's'} untouched.${pushNote}`
       });
     }
 
@@ -229,7 +263,13 @@ router.post('/', verifyAdminToken, async (req, res) => {
     expected_count above, so truncating the send they just approved would be the surprise, not the
     safeguard. The cron passes one because nobody is watching it.
     */
-    const { sent: sentCount, failed: failedCount, skipped: skippedCount } = await sendToAll(entry, targets);
+    const {
+      sent: sentCount,
+      failed: failedCount,
+      skipped: skippedCount,
+      pushed: pushedCount,
+      push_failed: pushFailedCount
+    } = await sendToAll(entry, targets, { push: withPush });
 
     /*
     skipped_count is magic send: people who were emailed inside the last 48 hours and have been
@@ -245,10 +285,14 @@ router.post('/', verifyAdminToken, async (req, res) => {
       failed_count: failedCount,
       skipped_count: skippedCount,
       sent_to: null,
+      ...(withPush ? { push_sent_count: pushedCount, push_failed_count: pushFailedCount } : {}),
       message: `Sent ${sentCount} of ${targets.length}`
         + (skippedCount > 0 ? `, ${skippedCount} marked as sent (emailed in the last 48 hours)` : '')
         + (failedCount > 0 ? `, ${failedCount} failed` : '')
         + '.'
+        + (withPush
+          ? ` Pushed to ${pushedCount} with the app${pushFailedCount > 0 ? `, ${pushFailedCount} push${pushFailedCount === 1 ? '' : 'es'} failed` : ''}.`
+          : '')
     });
 
   } catch (error) {
