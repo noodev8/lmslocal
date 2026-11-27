@@ -167,7 +167,7 @@ async function pushWithEmails(entry, emailed) {
  * @param {object} entry - the catalog entry
  * @param {object} templateData - built for the sample candidate
  * @param {number} userId - the operator's own app_user id
- * @returns {Promise<{devices: number, sent: number, error?: string}>}
+ * @returns {Promise<{devices: number, sent: number, reasons?: string[], error?: string}>}
  */
 async function sendTestPush(entry, templateData, userId) {
   if (!entry.push) return { devices: 0, sent: 0 };
@@ -181,7 +181,14 @@ async function sendTestPush(entry, templateData, userId) {
       token, type: push.type, title: push.title, body: push.body, data: push.data
     })));
 
-    return { devices: userTokens.length, sent: results.filter((r) => r.success).length };
+    /*
+    Say WHY a device failed, not just how many. "Sent to 0 of 4" with no reason is what this
+    returned when the server had no Firebase key - indistinguishable from four dead phones. The
+    reasons are collapsed to their distinct values: four copies of one sentence is noise.
+    */
+    const sent = results.filter((r) => r.success).length;
+    const reasons = [...new Set(results.filter((r) => !r.success).map((r) => (r.dead ? 'no longer registered' : r.error)))];
+    return { devices: userTokens.length, sent, ...(reasons.length ? { reasons } : {}) };
   } catch (error) {
     console.error('emailPush.sendTestPush failed:', error.message);
     return { devices: 0, sent: 0, error: error.message };

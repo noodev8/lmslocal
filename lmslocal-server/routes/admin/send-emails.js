@@ -226,7 +226,8 @@ router.post('/', verifyAdminToken, async (req, res) => {
           ? ` Test push failed: ${testPush.error}.`
           : testPush.devices === 0
             ? ' No test push: your account has no app device registered.'
-            : ` Test push sent to ${testPush.sent} of your ${testPush.devices} device${testPush.devices === 1 ? '' : 's'}.`;
+            : ` Test push sent to ${testPush.sent} of your ${testPush.devices} device${testPush.devices === 1 ? '' : 's'}`
+              + (testPush.reasons ? ` (failed: ${testPush.reasons.join('; ')}).` : '.');
       }
 
       if (!result.success) {
