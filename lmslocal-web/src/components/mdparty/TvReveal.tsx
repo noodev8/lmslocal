@@ -89,11 +89,20 @@ export default function TvReveal({
   };
 
 
+  // WHERE IT IS SEEN (2026-11-27). The TV page fills a screen, so its type is sized to the window
+  // (vw). The phone page is a narrow column wherever it is opened - a phone, or the host's laptop -
+  // so on it everything is a fixed size and stacked: the match, then the league. Sizing the phone
+  // page by the window gave a laptop the TV's two columns in a column too narrow for them, and the
+  // league's names shrank to a letter.
+  const S = onPhone
+    ? { grid: 'grid gap-6', two: '', countdown: 'mt-10 text-5xl', allIn: 'text-4xl', pos: 'text-[15px]', name: 'text-2xl', small: 'text-[15px]', big: 'text-2xl', rowRem: 2.75 }
+    : { grid: 'grid gap-[3vw] pt-[2vh]', two: 'lg:grid-cols-[1.4fr_1fr]', countdown: 'mt-[12vh] text-[clamp(3.5rem,9vw,8rem)]', allIn: 'text-[clamp(2.5rem,5vw,4.5rem)]', pos: 'text-[clamp(1rem,1.6vw,1.5rem)]', name: 'text-[clamp(1.4rem,2.4vw,2.3rem)]', small: 'text-[clamp(0.9rem,1.4vw,1.3rem)]', big: 'text-[clamp(1.4rem,2.4vw,2.3rem)]', rowRem: ROW_REM };
+
   // Once every result is in, the league is all anyone looks at: it takes the whole screen.
   const allIn = pos.phase === 'done';
 
   return (
-    <div className={`grid gap-[3vw] pt-[2vh] ${allIn ? '' : 'lg:grid-cols-[1.4fr_1fr]'}`}>
+    <div className={`${S.grid} ${allIn ? '' : S.two}`}>
       {/* ---------------------------------------------------------------- the match */}
       {!allIn && <div>
         <div className="flex items-baseline justify-between">
@@ -108,7 +117,7 @@ export default function TvReveal({
         </div>
 
         {pos.phase === 'countdown' && (
-          <p className="mt-[12vh] text-center font-display text-[clamp(3.5rem,9vw,8rem)] uppercase leading-none">Kick-off in {pos.countdown}</p>
+          <p className={`${S.countdown} text-center font-display uppercase leading-none`}>Kick-off in {pos.countdown}</p>
         )}
 
         {match && pos.phase !== 'countdown' && pos.phase !== 'done' && (
@@ -123,27 +132,27 @@ export default function TvReveal({
 
       {/* ---------------------------------------------------------------- the league */}
       <div className={allIn ? 'mx-auto w-full max-w-4xl' : ''}>
-        {allIn && <p className="mb-6 font-display text-[clamp(2.5rem,5vw,4.5rem)] uppercase leading-none">All the results are in</p>}
+        {allIn && <p className={`mb-6 font-display ${S.allIn} uppercase leading-none`}>All the results are in</p>}
         <div className={`flex items-baseline gap-4 ${LABEL} text-ink-fade`}>
           <span className="flex-1">The league{inPlay && standings.some((r) => r.live !== 0) ? ' · as it stands' : ''}</span>
-          <span className="w-[4.5ch] text-right font-data text-[clamp(0.9rem,1.4vw,1.3rem)] normal-case tracking-normal"><span className={LABEL}>Round</span></span>
-          <span className="w-[3.5ch] text-right font-data text-[clamp(1.4rem,2.4vw,2.3rem)] normal-case tracking-normal"><span className={LABEL}>Total</span></span>
+          <span className={`w-[4.5ch] text-right font-data ${S.small} normal-case tracking-normal`}><span className={LABEL}>Round</span></span>
+          <span className={`w-[3.5ch] text-right font-data ${S.big} normal-case tracking-normal`}><span className={LABEL}>Total</span></span>
         </div>
         {/* Rows are placed by position and slide when it changes. */}
-        <ol className="relative mt-4" style={{ height: `${standings.length * ROW_REM}rem` }}>
+        <ol className="relative mt-4" style={{ height: `${standings.length * S.rowRem}rem` }}>
           {standings.map((r, i) => (
             <li
               key={r.player_id}
               className="absolute inset-x-0 flex items-center gap-4 border-b border-ink/20 transition-[top] duration-700 ease-out"
-              style={{ top: `${i * ROW_REM}rem`, height: `${ROW_REM}rem` }}
+              style={{ top: `${i * S.rowRem}rem`, height: `${S.rowRem}rem` }}
             >
               {/* The name has the row: position, then the name with its arrow straight after it, then
                 two narrow number columns. Five fixed columns had left a name "And..." (2026-11-25). */}
-              <span className="w-8 shrink-0 font-data text-[clamp(1rem,1.6vw,1.5rem)] text-ink-fade">{r.position}</span>
+              <span className={`w-8 shrink-0 font-data ${S.pos} text-ink-fade`}>{r.position}</span>
               <span className="flex min-w-0 flex-1 items-baseline gap-2">
-                <span className="truncate font-display text-[clamp(1.4rem,2.4vw,2.3rem)] uppercase">{r.name}</span>
+                <span className={`truncate font-display ${S.name} uppercase`}>{r.name}</span>
                 {showMoves && r.move !== 0 && (
-                  <span className={`shrink-0 font-data text-[clamp(0.9rem,1.4vw,1.3rem)] ${r.move > 0 ? 'text-moss' : 'text-overprint'}`}>
+                  <span className={`shrink-0 font-data ${S.small} ${r.move > 0 ? 'text-moss' : 'text-overprint'}`}>
                     {r.move > 0 ? '▲' : '▼'}
                   </span>
                 )}
@@ -155,10 +164,10 @@ export default function TvReveal({
               {/* The round figure is always the lesser one: smaller, and in the moss green the game uses
                   for points won, so it reads as "what this round added" and never competes with the
                   total that decides the league. (A bold, larger total was tried and rejected.) */}
-              <span className="w-[4.5ch] shrink-0 text-right font-data text-[clamp(0.9rem,1.4vw,1.3rem)] tabular-nums text-moss">
+              <span className={`w-[4.5ch] shrink-0 text-right font-data ${S.small} tabular-nums text-moss`}>
                 {r.round_points + r.live < 0 ? `−${-(r.round_points + r.live)}` : `+${r.round_points + r.live}`}
               </span>
-              <span className="flex w-[3.5ch] shrink-0 flex-col items-end font-data text-[clamp(1.4rem,2.4vw,2.3rem)] leading-none">
+              <span className={`flex w-[3.5ch] shrink-0 flex-col items-end font-data ${S.big} leading-none`}>
                 <span className="tabular-nums">{r.points + r.live}</span>
               </span>
             </li>

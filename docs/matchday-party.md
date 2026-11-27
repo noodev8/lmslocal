@@ -253,6 +253,11 @@ own type and colours, the coupon's paper and ink: **no BBC name, logo or screen 
 are all anyone needs; a personal card beside it made the phone a different screen. No sound on
 phones, so the room does not hear six chimes.
 
+**Where each screen is seen** *(2026-11-27)*. `/mdparty/tv` fills a TV, so it is sized to the window
+and puts the match and the league side by side. `/mdparty` is a phone's screen wherever it is
+opened, the host's laptop included: a narrow column, fixed sizes, the match above the league. Sizing
+it to the window gave a laptop the TV's two columns in a column too narrow for them.
+
 **The end of the game** *(2026-11-25)* is made a moment of. The TV fills with **CHAMPION** (or
 **JOINT CHAMPIONS**) over the winner's name in the biggest type on the site, their points, confetti in
 the coupon's inks and a four-note fanfare, with the final league beneath and the winner's row
