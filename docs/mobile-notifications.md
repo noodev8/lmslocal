@@ -151,4 +151,53 @@ tap via `onMessageOpenedApp`, and cold start via `getInitialMessage`.
 **Not verified:** anything on iOS. The Dart side is shared and platform-independent, and
 `UIBackgroundModes` already carries `remote-notification`, but APNs delivery and the tap
 paths have never been run on an iOS build. Assume nothing there until it is tested against
-TestFlight.
+TestFlight — see §5.
+
+---
+
+## 5. iOS: what a build needs before it can receive anything
+
+Found 2026-11-27. iOS devices registered steadily until **11 Aug 2026** and then not once more,
+while Android carried on. The builds from August on lacked the Push Notifications capability, so
+iOS never issued an APNs token, Firebase's `getToken()` threw, and `notification_service.dart`
+swallowed it. Every iOS player has been on such a build since 2.1.1 became the minimum. Nothing on
+screen, nothing on the server — the only sign was the date on the newest iOS row in
+`device_tokens`.
+
+The earlier builds most likely came from a Mac whose Xcode project had changes never committed:
+the same rebuild also found `GoogleService-Info.plist` missing from the project (`a5c4cc3`).
+**What the repo holds is what ships**, so all of it has to be in the repo.
+
+Four things, all required, and every one of them fails silently:
+
+1. **`aps-environment` in `ios/Runner/Runner.entitlements`** — in the repo since 2026-11-27, as
+   `development`. Leave it: archiving for the App Store re-signs it as `production` by itself.
+   Adding the capability in Xcode writes the same key, so either way is fine; just make sure the
+   file is committed afterwards.
+2. **Push Notifications enabled on the App ID** `uk.co.lmslocal.lmslocalflutter` (Apple
+   Developer). With automatic signing, Xcode → Runner → Signing & Capabilities → **+ Capability →
+   Push Notifications** does it and refreshes the provisioning profile.
+3. **An APNs authentication key (.p8) uploaded to Firebase** — console → Project settings →
+   Cloud Messaging → Apple app configuration. Without it Firebase accepts every iOS send and Apple
+   delivers none of them: the server reports success.
+4. **`GoogleService-Info.plist` in the Xcode project's Copy Bundle Resources.** In the repo since
+   `a5c4cc3`; without it the app does not start at all, so this one at least is loud.
+
+The app now waits up to ten seconds for the APNs token and, if none arrives, logs
+`PUSH NOT AVAILABLE` to the device console (Xcode → Devices, or Console.app), so a build missing
+1 or 2 says so on the first sign-in.
+
+**How to tell it worked:** after signing in on a TestFlight build, a new `ios` row appears in
+`device_tokens` for that account:
+
+```bash
+node db/query.js "SELECT user_id, platform, updated_at FROM device_tokens WHERE platform = 'ios' ORDER BY updated_at DESC LIMIT 5"
+```
+
+Then a test push from the admin Emails screen (against production — the local server has no
+Firebase key) should arrive, and tapping it should open the right screen, backgrounded and from
+cold. A new row with no push arriving means item 3.
+
+**The 51 iOS rows from the old builds** are almost certainly dead. They count as "has the app" on
+the admin screen until a live send gets "not registered" back from Firebase, which deletes them.
+No action needed.

@@ -47,9 +47,45 @@ class NotificationService {
     return settings;
   }
 
+  /// How long to wait for iOS to hand over the APNs token before giving up.
+  static const _apnsWaitAttempts = 10;
+  static const _apnsWaitInterval = Duration(seconds: 1);
+
+  /// iOS only: the APNs token, waiting for it to arrive, or null if it never
+  /// does.
+  ///
+  /// Firebase cannot issue a token on iOS until Apple has issued one, and
+  /// getToken() throws rather than waits. Asked straight after the permission
+  /// prompt, Apple's token is often not there yet — so this waits up to ten
+  /// seconds. A null here after that long is not a race but a build that
+  /// cannot receive push at all: almost always the aps-environment entitlement
+  /// missing from ios/Runner/Runner.entitlements, which is exactly how every
+  /// iOS build from August to November 2026 registered nobody without a
+  /// single visible error. See docs/mobile-notifications.md §5.
+  Future<String?> _waitForApnsToken() async {
+    for (var attempt = 0; attempt < _apnsWaitAttempts; attempt++) {
+      final apnsToken = await _messaging.getAPNSToken();
+      if (apnsToken != null) return apnsToken;
+      await Future<void>.delayed(_apnsWaitInterval);
+    }
+    return null;
+  }
+
   /// Get FCM token and register with backend
   Future<void> _getAndRegisterToken() async {
     try {
+      if (Platform.isIOS && await _waitForApnsToken() == null) {
+        // Loud on purpose: this is the failure that went unnoticed for months.
+        // onTokenRefresh (set up in initialize) still registers the token if
+        // Apple's arrives later.
+        debugPrint(
+          '🔔 PUSH NOT AVAILABLE: no APNs token after '
+          '${_apnsWaitAttempts * _apnsWaitInterval.inSeconds}s. Check the '
+          'aps-environment entitlement and the Push Notifications capability.',
+        );
+        return;
+      }
+
       // Deprecated in firebase_messaging 17 for register()/onRegistered, which
       // is not a drop-in: it yields a Firebase Installation ID, not an FCM
       // token, and the server (fcmService.js) sends to stored FCM tokens.

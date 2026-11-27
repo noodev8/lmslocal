@@ -25,3 +25,24 @@ vercel --prod
 
 == App Stores
 Review test logins: docs/store-review-logins.txt (untracked - local only)
+
+-- Every release (both stores)
+1. Bump version in lmslocal-flutter/pubspec.yaml (x.y.z+build; build always goes up).
+2. Build from a clean checkout of what is committed - anything changed in Xcode or Android Studio
+   must be committed first. The repo is what ships (see docs/mobile-notifications.md section 5).
+3. Test on a real phone: sign in, then check a new device_tokens row appeared for that account,
+   then send a test push from admin Emails against production and tap it.
+4. Minimum version (app_version table) only if old builds must be forced off. Not by default.
+
+-- iOS
+- Xcode -> Runner -> Signing & Capabilities must show Push Notifications and Associated Domains.
+- Runner.entitlements must contain aps-environment. Do not remove it.
+
+-- PENDING FOR THE NEXT RELEASE (added 2026-11-27, delete each line once done)
+- [ ] iOS: Xcode -> + Capability -> Push Notifications (enables it on the App ID). Commit any file
+      Xcode changes.
+- [ ] iOS: Firebase console -> Project settings -> Cloud Messaging -> Apple app: check an APNs
+      auth key (.p8) is uploaded; upload one if not (Apple Developer -> Keys -> + -> APNs).
+- [ ] iOS: on TestFlight, sign in and confirm a NEW ios row in device_tokens - none since
+      11 Aug 2026. Then a test push, tapped from background and from cold.
+- [ ] Both: weekend Matchday testing changes, if any, go in this same release.
