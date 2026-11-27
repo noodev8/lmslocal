@@ -346,7 +346,7 @@ changed for this. The server guarantees they are never shown a game they cannot 
 | `get-user-dashboard` | Competitions of a game the client did not declare are **left out**. The app's dashboard already has its "open on the web" card |
 | `get-competition-by-code` | Unchanged, `SUCCESS`. The old app treats any other code as "We could not check that code", which is wrong here |
 | `join-competition-by-code` | Refuses with **`GAME_NOT_SUPPORTED`** and a message naming the game and saying to **update the app** (close it fully and reopen it, which lands on the store page - those builds check only on a cold start - or go to the store) and tap the invite link again. Since 2026-11-24, when 2.1.1 was in both stores and became the minimum version: builds before 2.1.0 skip the version gate when opened from a link, so this message is where they learn to update. It no longer mentions the web, deliberately (less is more): once updated, the same link joins in the app. The app shows the join route's `message` verbatim (`join_page.dart`) |
-| Push notifications | None until 2026-11-27. Since then the pick reminder's push covers Matchday — 2.1.1, the minimum version, knows the game (§9) |
+| Push notifications | None until 2026-11-27. Since then the pushes that go with player emails cover Matchday — 2.1.1, the minimum version, knows the game (§9) |
 
 The `/join/*` app deep link (not yet built, `docs/flutter-migration.md`) lands on the same join
 screen and gets the same refusal.
@@ -470,8 +470,9 @@ route's round query against one, not through the screens: no open Matchday round
   `gameStartReminder.js` are guarded too, so re-wiring either cannot leak. **The exception is the
   pick reminder (§9.1)**, which covers both games, each half with its own guard.
 - **Push notifications** (2026-11-27): a push goes with an email, built from its data, and only
-  when that email is sent (`docs/mobile-notifications.md` §1). The pick reminder carries one, so a
-  Matchday player with the app gets it in Matchday's words — the email's subject and opening line.
+  when that email is sent (`docs/mobile-notifications.md` §1). The pick reminder, Round Over and
+  Game complete carry one, so a Matchday player with the app gets each in Matchday's words — the
+  email's subject and opening line.
   The old LMS-only queue and its guard were removed.
 - **Bots**: LMS only. `loadBotCompetition` in `services/botPool.js` refuses any other game with
   `COMPETITION_NOT_ELIGIBLE`, which covers all five bot routes at once.

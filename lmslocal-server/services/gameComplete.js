@@ -95,6 +95,29 @@ const subjectForData = (data) => (data.game_type === 'matchday'
   : subjectFor(data.competition_name, data));
 
 /**
+ * The push notification that goes WITH this email, for someone who has the app (2026-11-27).
+ *
+ * THE EMAIL IS THE MASTER. services/emailPush.js sends it only when this email was sent. Title is
+ * the subject, which already carries the result ("You won X"); body is the sentence under the
+ * email's headline, from the template's own function. The tap opens the competition's page
+ * (`type: game_complete` takes the app's default), where the final standings are.
+ *
+ * No round: this email is about a competition, and its email_queue row carries round_id NULL too.
+ *
+ * @param {object} templateData - as built by buildTemplateData
+ * @returns {{type: string, title: string, body: string, data: object, record: object}}
+ */
+function pushFor(templateData) {
+  // Required here, not at the top: emailService requires this file at load for its subjects.
+  const { lmsGameCompleteLines, matchdayGameCompleteLines } = require('./emailService');
+  const body = templateData.game_type === 'matchday'
+    ? matchdayGameCompleteLines(templateData).body
+    : lmsGameCompleteLines(templateData).outcomeLine;
+  const record = { competition_id: templateData.competition_id, round_id: null, round_number: null };
+  return { type: EMAIL_TYPE, title: subjectForData(templateData), body, data: record, record };
+}
+
+/**
  * Find everyone who should be told their competition has finished.
  *
  * One query. The outcome columns are the same for every row of a given competition, which is
@@ -456,6 +479,7 @@ module.exports = {
   subjectFor,
   matchdaySubjectFor,
   subjectForData,
+  pushFor,
   findCandidates,
   buildTemplateData,
   queueCandidate

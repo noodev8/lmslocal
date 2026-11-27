@@ -18,7 +18,8 @@ and no opt-out or archived checks. That cron was never scheduled; 7 pushes went 
 docs/mobile-notifications.md §1 has the before and after.
 
 An email takes part by carrying `push` on its catalog entry (services/emailCatalog.js): a function
-from the email's template data to the notification. Only pick_reminder does so far.
+from the email's template data to the notification: pick_reminder, results (Round Over) and
+game_complete. Organiser emails never do - the app is player-only, so a tap would have nowhere to go.
 
 WHEN IS ALSO THE EMAIL'S. Nothing here looks at the clock. Today every send is pressed by hand on the
 admin screen, and services/emailSweep.js only pushes when its caller asks - the admin route does,

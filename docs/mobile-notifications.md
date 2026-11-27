@@ -24,10 +24,19 @@ emails → `services/emailPush.js` pushes to whoever was sent one, in one batch 
 |---|---|---|---|
 | `pick_reminder`, one competition | The email's subject (`Pick by Sat 11:30am — …` / `Predict by …`) | The email's opening line | That competition's **Play** tab (LMS pick or Matchday predictions) |
 | `pick_reminder`, several | The email's subject (`Before … — 3 competitions need you`) | `3 of your competitions are waiting on you this round.` | No competition — the app just opens, as the email's button goes to the dashboard |
+| `results` (Round Over), one competition | `Aptar LMS — Round 3 results` | Their own round: `You picked Arsenal and they won. You are through to the next round.` / `You scored 10 points in Round 2: …` | The competition's page (`results` is not a type the app names, so it takes the default) |
+| `results`, several | `Your results — 2 competitions` | `Results are in for 2 of your competitions.` | No competition — the app just opens |
+| `game_complete` | The subject, which carries the result (`You won Aptar LMS`, `… ends in a shared win`) | The line under the email's headline | The competition's page (default) |
 
 An email takes part by carrying `push` on its entry in `services/emailCatalog.js`: a function from
-the email's template data to the notification (`pushFor` in `services/pickReminder.js`). Only
-`pick_reminder` has one. The words are copied from the email template — change one, change both.
+the email's template data to the notification (`pushFor` in the email's service). Three have one:
+`pick_reminder`, `results` and `game_complete`. Round Over and Game complete take their body from
+the template's own sentence functions in `services/emailService.js` (`lmsRoundOverResultLine` and
+friends), so the push cannot drift from the email; the pick reminder's two short lines are copied —
+change one, change both.
+
+The app is player-only, so organiser emails never carry a push: there is no organiser screen for a
+tap to open.
 
 - **Opt-in per send.** `sendToAll` pushes only when its caller asks. The admin route does, when
   the box is ticked; `scripts/email-sweep.js` does not, so a crontab line sends emails only. When a
@@ -39,7 +48,9 @@ the email's template data to the notification (`pushFor` in `services/pickRemind
 - **Dead tokens are deleted** when Firebase reports them unregistered, so "has the app" on the admin
   screen stays honest.
 - **`mobile_notification_queue` is the record**, not a queue: one row per person per push, `sent` or
-  `failed`, filed under the lead competition and round. Nothing is `pending` any more.
+  `failed`, filed under the lead competition and round — no round for `game_complete`, which is
+  about a competition (`db/migrations/2026-11-27-push-record-round-optional.sql`). Nothing is
+  `pending` any more.
 
 **Before 2026-11-27** pushes had their own queue, filled when fixtures went up or a player joined,
 and a 5-minute cron (`/process-mobile-notifications`) to drain it — its own 24-hour window, a

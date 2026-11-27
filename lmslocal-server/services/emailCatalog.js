@@ -81,7 +81,7 @@ const CATALOG = {
   covers. docs/matchday.md §9.1 has the why.
 
   `push` (2026-11-27): a push notification goes with the email to anyone who has the app, built
-  from the same template data. The only entry carrying one. services/emailPush.js has the rule -
+  from the same template data. Also on results (Round Over) and game_complete. services/emailPush.js has the rule -
   the push follows a SENT email and nothing else - and docs/mobile-notifications.md §1 the flow.
   */
   pick_reminder: {
@@ -241,7 +241,9 @@ const CATALOG = {
     scoped: true,
     service: gameComplete,
     build: buildGameCompleteEmail,
-    send: sendGameCompleteEmail
+    send: sendGameCompleteEmail,
+    // With a push to the app since 2026-11-27, as pick_reminder. No round: see gameComplete pushFor.
+    push: gameComplete.pushFor
   },
   /*
   Round Over. The key stays 'results' - it is what email_queue rows, the tracking table and the
@@ -251,7 +253,9 @@ const CATALOG = {
     scoped: true,
     service: roundOver,
     build: buildRoundOverEmail,
-    send: sendRoundOverEmail
+    send: sendRoundOverEmail,
+    // With a push to the app since 2026-11-27, as pick_reminder.
+    push: roundOver.pushFor
   },
 
   /*

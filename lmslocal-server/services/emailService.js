@@ -3147,6 +3147,44 @@ const sendResultReminderEmail = async (email, templateData, options = {}) => {
  * @param {string} email - recipient
  * @param {object} templateData - as built by services/gameComplete.js, game_type 'matchday'
  */
+/**
+ * A Matchday Game Complete's headline and the sentence under it. Shared with the push that goes
+ * with the email (services/gameComplete.js pushFor) - the email's wording is the master.
+ *
+ * @param {object} d - Matchday Game Complete template data
+ * @returns {{headline: string, body: string}}
+ */
+const matchdayGameCompleteLines = (d) => {
+  const { competition_name, rounds_played, player_count, winner_count, winner_names, winning_total,
+    recipient_won, position, position_shared, total } = d;
+  const pts = (n) => `${n} ${n === 1 ? 'point' : 'points'}`;
+  const rounds = `${rounds_played} ${rounds_played === 1 ? 'round' : 'rounds'}`;
+  const shared = winner_count > 1;
+
+  if (recipient_won && !shared) {
+    return {
+      headline: `You won ${competition_name}`,
+      body: `You finished top of the table after ${rounds}, on ${pts(total)}.`
+    };
+  }
+  if (recipient_won) {
+    return {
+      headline: `You share the win in ${competition_name}`,
+      body: `After ${rounds}, ${winner_names} finished level at the top on ${pts(winning_total)}. The win is shared.`
+    };
+  }
+  let body = shared
+    ? `After ${rounds}, ${winner_names} finished level at the top on ${pts(winning_total)}.`
+    : `${winner_names} finished top of the table after ${rounds}, on ${pts(winning_total)}.`;
+  if (position) {
+    body += ` You finished ${position_shared ? 'joint ' : ''}${ordinal(position)} of ${player_count}, on ${pts(total)}.`;
+  }
+  return {
+    headline: shared ? `${winner_names} share the win` : `${winner_names} wins ${competition_name}`,
+    body
+  };
+};
+
 const buildMatchdayGameCompleteEmail = (email, templateData) => {
   const {
     user_display_name,
@@ -3167,27 +3205,7 @@ const buildMatchdayGameCompleteEmail = (email, templateData) => {
   } = templateData;
 
   const footer = buildEmailFooter(unsubscribe?.url || null);
-  const pts = (n) => `${n} ${n === 1 ? 'point' : 'points'}`;
-  const rounds = `${rounds_played} ${rounds_played === 1 ? 'round' : 'rounds'}`;
-  const shared = winner_count > 1;
-
-  let headline;
-  let body;
-  if (recipient_won && !shared) {
-    headline = `You won ${competition_name}`;
-    body = `You finished top of the table after ${rounds}, on ${pts(total)}.`;
-  } else if (recipient_won) {
-    headline = `You share the win in ${competition_name}`;
-    body = `After ${rounds}, ${winner_names} finished level at the top on ${pts(winning_total)}. The win is shared.`;
-  } else {
-    headline = shared ? `${winner_names} share the win` : `${winner_names} wins ${competition_name}`;
-    body = shared
-      ? `After ${rounds}, ${winner_names} finished level at the top on ${pts(winning_total)}.`
-      : `${winner_names} finished top of the table after ${rounds}, on ${pts(winning_total)}.`;
-    if (position) {
-      body += ` You finished ${position_shared ? 'joint ' : ''}${ordinal(position)} of ${player_count}, on ${pts(total)}.`;
-    }
-  }
+  const { headline, body } = matchdayGameCompleteLines(templateData);
 
   const tableUrl = `${process.env.PLAYER_FRONTEND_URL}/game/${competition_id}/table?email_id=${email_tracking_id}`;
   const tableHtml = (final_table || []).map((r) => `
@@ -3291,6 +3309,38 @@ ${footer.text}
  * @param {object} templateData - as built by services/gameComplete.js
  * @returns {{subject: string, html: string, text: string, from: string, headers: object, tags: object[]}}
  */
+/**
+ * An LMS Game Complete's headline and the line under it, by ending. Shared with the push that goes
+ * with the email (services/gameComplete.js pushFor) - the email's wording is the master.
+ *
+ * Written out rather than assembled from fragments because "you won" and "nobody won" are different
+ * sentences, not one sentence with a variable in it, and the shared case has to work for the winner
+ * and for everyone else.
+ *
+ * @param {object} d - LMS Game Complete template data
+ * @returns {{headline: string, outcomeLine: string}}
+ */
+const lmsGameCompleteLines = (d) => {
+  const { survivor_count, recipient_survived, winner_names, competition_name, player_count } = d;
+  if (survivor_count === 1) {
+    return {
+      headline: recipient_survived ? 'You won' : `${winner_names} won`,
+      outcomeLine: recipient_survived
+        ? `You are the last one standing in ${competition_name}. Out of ${player_count} ${player_count === 1 ? 'player' : 'players'}, you are the one who made it.`
+        : `${winner_names} is the last one standing in ${competition_name}, out of ${player_count} ${player_count === 1 ? 'player' : 'players'}.`
+    };
+  }
+  /*
+  ONE message for a draw, whatever the survivor count and whoever is reading. Nobody is named and
+  no win is awarded: the competition ended without settling one, and what that means - split,
+  play-off, nothing at all - is the organiser's to decide, not ours to announce.
+  */
+  return {
+    headline: 'No winner this time',
+    outcomeLine: `Everybody still standing went out in the same round, so ${competition_name} finishes without a winner.`
+  };
+};
+
 const buildGameCompleteEmail = (email, templateData) => {
   // Branch once, at the top (docs/matchday.md §3.2). Everything below is LMS, unchanged.
   if (templateData.game_type === 'matchday') {
@@ -3313,28 +3363,7 @@ const buildGameCompleteEmail = (email, templateData) => {
 
   const footer = buildEmailFooter(unsubscribe?.url || null);
 
-  /*
-  The headline and the line under it, by ending. Written out rather than assembled from fragments
-  because "you won" and "nobody won" are different sentences, not one sentence with a variable in
-  it, and the shared case has to work for the winner and for everyone else.
-  */
-  let headline;
-  let outcomeLine;
-
-  if (survivor_count === 1) {
-    headline = recipient_survived ? 'You won' : `${winner_names} won`;
-    outcomeLine = recipient_survived
-      ? `You are the last one standing in ${competition_name}. Out of ${player_count} ${player_count === 1 ? 'player' : 'players'}, you are the one who made it.`
-      : `${winner_names} is the last one standing in ${competition_name}, out of ${player_count} ${player_count === 1 ? 'player' : 'players'}.`;
-  } else {
-    /*
-    ONE message for a draw, whatever the survivor count and whoever is reading. Nobody is named
-    and no win is awarded: the competition ended without settling one, and what that means -
-    split, play-off, nothing at all - is the organiser's to decide, not ours to announce.
-    */
-    headline = 'No winner this time';
-    outcomeLine = `Everybody still standing went out in the same round, so ${competition_name} finishes without a winner.`;
-  }
+  const { headline, outcomeLine } = lmsGameCompleteLines(templateData);
 
   /*
   How far this reader got, and nothing else. Someone knocked out in round 2 of nine cares about
@@ -3468,19 +3497,32 @@ One Matchday competition's Round Over, in Matchday's words (docs/matchday.md §2
 table, predictions - never pick, survive or out). The same three blocks as LMS's: my round, where
 everybody stands, what happens next.
 */
+/**
+ * A Matchday Round Over's opening sentence: this player's round. Shared with the push that goes
+ * with the email (services/roundOver.js pushFor) - the email's wording is the master.
+ *
+ * @param {object} item - one Matchday item (services/roundOver.js matchdayItemData)
+ * @returns {string}
+ */
+const matchdayRoundOverResultLine = (item) => {
+  const pts = (n) => `${n} ${n === 1 ? 'point' : 'points'}`;
+  if (item.predictions === 0) {
+    return `You made no predictions in Round ${item.round_number}, so it scored nothing.`;
+  }
+  const parts = [`${item.right_count} right`];
+  if (item.draw_count > 0) parts.push(`${item.draw_count} ${item.draw_count === 1 ? 'draw' : 'draws'}`);
+  return `You scored ${pts(item.round_points)} in Round ${item.round_number}: ${parts.join(' and ')} from ${item.predictions} ${item.predictions === 1 ? 'prediction' : 'predictions'}.`;
+};
+
+/** The multi-competition Round Over's opening line. Shared with its push, like the two above. */
+const roundOverBundleIntro = (items) => `Results are in for ${items.length} of your competitions.`;
+
 const matchdayRoundOverSection = (item, trackingId) => {
   const base = `${process.env.PLAYER_FRONTEND_URL}/game/${item.competition_id}`;
   const open = openDeadline(item.next_deadline);
   const pts = (n) => `${n} ${n === 1 ? 'point' : 'points'}`;
 
-  let yourRound;
-  if (item.predictions === 0) {
-    yourRound = `You made no predictions in Round ${item.round_number}, so it scored nothing.`;
-  } else {
-    const parts = [`${item.right_count} right`];
-    if (item.draw_count > 0) parts.push(`${item.draw_count} ${item.draw_count === 1 ? 'draw' : 'draws'}`);
-    yourRound = `You scored ${pts(item.round_points)} in Round ${item.round_number}: ${parts.join(' and ')} from ${item.predictions} ${item.predictions === 1 ? 'prediction' : 'predictions'}.`;
-  }
+  const yourRound = matchdayRoundOverResultLine(item);
 
   const standing = item.position
     ? `You're ${item.position_shared ? 'joint ' : ''}${ordinal(item.position)} of ${item.player_count}, on ${pts(item.total)}.`
@@ -3620,7 +3662,7 @@ const buildBundledRoundOverEmail = (email, templateData) => {
   } else {
     const lines = items.map((item) => roundOverLineFor(item, email_tracking_id));
     const dashboardUrl = `${process.env.PLAYER_FRONTEND_URL}/dashboard?email_id=${email_tracking_id}`;
-    const intro = `Results are in for ${items.length} of your competitions.`;
+    const intro = roundOverBundleIntro(items);
     subtitle = 'Your results this round';
     bodyHtml = `
             <p style="color: #334155; font-size: 16px; margin: 0 0 24px 0; line-height: 1.5;">${intro}</p>
@@ -3710,6 +3752,40 @@ ${footer.text}
  * @param {object} templateData - as built by services/roundOver.js
  * @returns {{subject: string, html: string, text: string, from: string, headers: object, tags: object[]}}
  */
+/**
+ * An LMS Round Over's first block: the recipient's own round, in one sentence. Its own function
+ * because the push that goes with the email (services/roundOver.js pushFor) leads with the same
+ * sentence, and the email's wording is the master - one copy, so the two cannot drift.
+ *
+ * Four outcomes, and they are not the same sentence with a word swapped: surviving on a lost life
+ * is good news and bad news at once, and a missed pick needs naming as a missed pick rather than
+ * dressed up as a defeat.
+ *
+ * @param {object} d - LMS Round Over template data (services/roundOver.js lmsTemplateData)
+ * @returns {string}
+ */
+const lmsRoundOverResultLine = (d) => {
+  const { round_number, chosen_team, outcome, missed_pick, survived, lives_remaining, competition_complete, competition_name } = d;
+  if (missed_pick && survived) {
+    return `You did not get a pick in for Round ${round_number}. That cost you a life — you have ${lives_remaining} left, and you are still in.`;
+  }
+  if (missed_pick) {
+    return `You did not get a pick in for Round ${round_number}, and that is you out.`;
+  }
+  if (String(outcome).toUpperCase() === 'WIN' && competition_complete) {
+    // No next round to be through to. What it actually won them is the ending block's business,
+    // since only that knows whether this was an outright win or a share.
+    return `You picked ${chosen_team} and they won — and that is the last round.`;
+  }
+  if (String(outcome).toUpperCase() === 'WIN') {
+    return `You picked ${chosen_team} and they won. You are through to the next round.`;
+  }
+  if (survived) {
+    return `You picked ${chosen_team} and they did not win. That cost you a life — you have ${lives_remaining} left, and you are still in.`;
+  }
+  return `You picked ${chosen_team} and they did not win. That is you out of ${competition_name}.`;
+};
+
 const buildRoundOverEmail = (email, templateData) => {
   /*
   Branch once, at the top (docs/matchday.md §3.2). Template data with `items` is the person-level
@@ -3753,22 +3829,7 @@ const buildRoundOverEmail = (email, templateData) => {
   life is good news and bad news at once, and a missed pick needs naming as a missed pick rather
   than dressed up as a defeat.
   */
-  let yourResult;
-  if (missed_pick && survived) {
-    yourResult = `You did not get a pick in for Round ${round_number}. That cost you a life — you have ${lives_remaining} left, and you are still in.`;
-  } else if (missed_pick) {
-    yourResult = `You did not get a pick in for Round ${round_number}, and that is you out.`;
-  } else if (String(outcome).toUpperCase() === 'WIN' && competition_complete) {
-    // No next round to be through to. What it actually won them is the ending block's business,
-    // since only that knows whether this was an outright win or a share.
-    yourResult = `You picked ${chosen_team} and they won — and that is the last round.`;
-  } else if (String(outcome).toUpperCase() === 'WIN') {
-    yourResult = `You picked ${chosen_team} and they won. You are through to the next round.`;
-  } else if (survived) {
-    yourResult = `You picked ${chosen_team} and they did not win. That cost you a life — you have ${lives_remaining} left, and you are still in.`;
-  } else {
-    yourResult = `You picked ${chosen_team} and they did not win. That is you out of ${competition_name}.`;
-  }
+  const yourResult = lmsRoundOverResultLine(templateData);
 
   // Block 2 - the round at large. Counts exact, names sampled; see SAMPLE_SIZE in roundOver.js.
   const roundLines = [];
@@ -5179,6 +5240,12 @@ module.exports = {
   buildGameCompleteEmail,
   sendGameCompleteEmail,
   buildRoundOverEmail,
+  // The emails' opening lines, shared with the pushes that go with them (services/emailPush.js).
+  lmsRoundOverResultLine,
+  matchdayRoundOverResultLine,
+  roundOverBundleIntro,
+  lmsGameCompleteLines,
+  matchdayGameCompleteLines,
   sendRoundOverEmail,
   buildHintEmail,
   sendHintEmail,

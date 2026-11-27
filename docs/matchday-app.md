@@ -330,13 +330,13 @@ Reference: `lmslocal-web/src/app/game/[id]/table/page.tsx`, and `docs/matchday.m
 
 ## 12. Notifications
 
-- **Since 2026-11-27 the pick reminder's push covers Matchday.** A push goes with an email, in
-  that email's words (`docs/mobile-notifications.md` §1), so a Matchday player with the app gets
-  "Predict by …" when their reminder email is sent. The tap is `type: pick_reminder` with the
+- **Since 2026-11-27 pushes cover Matchday.** A push goes with an email, in that email's words
+  (`docs/mobile-notifications.md` §1), so a Matchday player with the app gets "Predict by …" with
+  their pick reminder, their round's points with Round Over, and the result with Game complete. The
+  last two carry types the app does not name, so they open the competition's page by default. The tap is `type: pick_reminder` with the
   competition id, which `notification_routes.dart` sends to `?tab=play` — the predictions tab, via
   `CompetitionEntryPage`. No app change was needed.
-- There is no other Matchday push, because no other email carries one yet. Adding one is server
-  work: a `push` on that email's catalog entry.
+- Adding another is server work: a `push` on that email's catalog entry.
 
 ---
 

@@ -718,6 +718,50 @@ function subjectForData(templateData) {
 }
 
 /**
+ * The push notification that goes WITH this email, for someone who has the app (2026-11-27).
+ *
+ * THE EMAIL IS THE MASTER. services/emailPush.js sends it only when this email was sent, and it
+ * says what the email says: the subject as its title, the email's opening sentence - this player's
+ * own round - as its body. The sentences are the template's own functions, not copies.
+ *
+ * THE TAP GOES WHERE THE EMAIL GOES. One competition: its page (`type: results` is not one the app
+ * names, so it takes the default, the competition's own page - where the result and the next round
+ * are). More than one: the email's button is the dashboard, so the push names no competition and
+ * the app just opens.
+ *
+ * @param {object} templateData - as built by buildTemplateData
+ * @returns {{type: string, title: string, body: string, data: object, record: object}}
+ */
+function pushFor(templateData) {
+  // Required here, not at the top: emailService requires this file at load for its subjects.
+  const { lmsRoundOverResultLine, matchdayRoundOverResultLine, roundOverBundleIntro } = require('./emailService');
+  const { items } = templateData;
+  const title = subjectForData(templateData);
+
+  if (!items) {
+    const record = {
+      competition_id: templateData.competition_id,
+      round_id: templateData.round_id,
+      round_number: templateData.round_number
+    };
+    return { type: EMAIL_TYPE, title, body: lmsRoundOverResultLine(templateData), data: record, record };
+  }
+
+  const lead = items[0];
+  const record = { competition_id: lead.competition_id, round_id: lead.round_id, round_number: lead.round_number };
+
+  if (items.length === 1) {
+    // A single item is always Matchday: one LMS competition is the no-`items` shape above.
+    const body = lead.game_type === 'matchday'
+      ? matchdayRoundOverResultLine(lead)
+      : lmsRoundOverResultLine(lead);
+    return { type: EMAIL_TYPE, title, body, data: record, record };
+  }
+
+  return { type: EMAIL_TYPE, title, body: roundOverBundleIntro(items), data: {}, record };
+}
+
+/**
  * Queue one email, and open its tracking row. One queue row per competition in the email - see
  * queueBundle in services/emailBundle.js.
  *
@@ -745,6 +789,7 @@ module.exports = {
   SAMPLE_SIZE,
   subjectFor,
   subjectForData,
+  pushFor,
   findCandidates,
   buildTemplateData,
   queueCandidate

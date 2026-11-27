@@ -146,7 +146,7 @@ const OUTLINE: OutlineEmail[] = [
     note: 'Round settled + next fixtures in',
     focus: true,
     blurb:
-      'The one email every player gets every week. Their own result first, then who is still in, then what happens next. Not ready when the round ends — ready when the round ends AND the next round’s fixtures are in, or the competition has finished, so it is never a dead end. Covers Matchday too (points and the table), one email per person across every competition (docs/matchday.md §9.1).',
+      'The one email every player gets every week. Their own result first, then who is still in, then what happens next. Not ready when the round ends — ready when the round ends AND the next round’s fixtures are in, or the competition has finished, so it is never a dead end. Covers Matchday too (points and the table), one email per person across every competition (docs/matchday.md §9.1). Anyone with the app also gets a push with the email — its subject and their own result, only if the email is sent.',
   },
   {
     key: 'pick_reminder',
@@ -192,10 +192,11 @@ const OUTLINE: OutlineEmail[] = [
     section: 'Game',
     name: 'Game complete',
     scoped: true,
+    push: true,
     note: 'Everyone who took part, once',
     focus: true,
     blurb:
-      'Goes to everyone who took part in a finished competition, winners and knocked-out alike — somebody out in round 2 still wants to know who won. Once per player per competition, ever. The outcome is derived from who is left: a named winner, a shared win, or nobody at all. Covers Matchday too, where the outcome is the top of the final table and a tie there is a shared win naming everyone.',
+      'Goes to everyone who took part in a finished competition, winners and knocked-out alike — somebody out in round 2 still wants to know who won. Once per player per competition, ever. The outcome is derived from who is left: a named winner, a shared win, or nobody at all. Covers Matchday too, where the outcome is the top of the final table and a tie there is a shared win naming everyone. Anyone with the app also gets a push with the email, only if the email is sent.',
   },
   /*
   Game Start reminder is deliberately absent, dropped 2026-08-14 alongside Share reminder and for
