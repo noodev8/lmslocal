@@ -430,7 +430,7 @@ class _MatchdayHomePageState extends State<MatchdayHomePage> {
                             color: CouponTheme.stockLit,
                             padding: const EdgeInsets.only(left: 6),
                             child: Text(
-                              '${row.total}${row.provisional ? '*' : ''}',
+                              '${row.total}',
                               style: CouponTheme.dataText.copyWith(fontSize: 16),
                             ),
                           ),

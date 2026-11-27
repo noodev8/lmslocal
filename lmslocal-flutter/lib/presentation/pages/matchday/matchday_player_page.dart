@@ -133,7 +133,7 @@ class _MatchdayPlayerPageState extends State<MatchdayPlayerPage> {
                             style: CouponTheme.label,
                           ),
                           Text(
-                            '${tableRow.total} PTS${tableRow.provisional ? '*' : ''}',
+                            '${tableRow.total} PTS',
                             style: CouponTheme.heading(24),
                           ),
                         ],

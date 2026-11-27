@@ -80,7 +80,6 @@ export default function MatchdayTablePage() {
       shownIndexes.add(i);
     }
   }
-  const anyProvisional = rows.some(row => row.provisional);
   const ending = data ? endingLabel(data.competition.end_rule, data.competition.end_value) : '';
 
   return (
@@ -187,7 +186,6 @@ export default function MatchdayTablePage() {
                       <td className="hidden px-2 py-3 text-right font-data text-[15px] text-ink sm:table-cell">{row.predictions}</td>
                       <td className="px-3 py-3 text-right font-display text-2xl text-ink">
                         {row.total}
-                        {row.provisional && <span className="text-ink-fade" aria-label="includes this round so far">*</span>}
                       </td>
                     </tr>
                     </Fragment>
@@ -212,7 +210,6 @@ export default function MatchdayTablePage() {
         {/* The rules of the table, in words, so a tie never becomes an argument. */}
         {data && (
           <div className="mt-5 space-y-1 text-[15px] text-ink-fade">
-            {anyProvisional && <p>* Includes the round still being played - it can still move.</p>}
             <p>{MATCHDAY_SCORING}. Nothing takes points away, so a total only goes up.</p>
             <p>Level on points? More wins goes ahead, then more predictions made. Still level means sharing the place.</p>
             <p>Tap a name to see their predictions. Nobody&apos;s are shown until the round locks.</p>

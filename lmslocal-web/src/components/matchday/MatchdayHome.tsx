@@ -259,7 +259,7 @@ export default function MatchdayHome({ competition }: { competition: Competition
                     {row.display_name}{row.is_me && <span className="sr-only"> (you)</span>}
                   </span>
                   <span className="flex-1 translate-y-[-3px] border-b border-dotted border-ink/30" />
-                  <span className="font-data text-[16px] text-ink">{row.total}{row.provisional ? '*' : ''}</span>
+                  <span className="font-data text-[16px] text-ink">{row.total}</span>
                 </li>
               ))}
             </ol>

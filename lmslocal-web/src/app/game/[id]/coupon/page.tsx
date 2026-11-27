@@ -171,9 +171,10 @@ export default function CouponPage() {
       : f.result === 'DRAW'
         ? 'Draw'
         : `${f.result === f.home_team_short ? f.home_team : f.away_team} won`,
-    outcome: f.settled && f.my_team !== null && f.my_points !== null
-      ? { word: outcomeWord(f.my_team, f.result), points: signedPoints(f.my_points) }
-      : null,
+    // No "Won +3" / "Lost 0" on the card (2026-11-27): the highlighted choice beside "Forest won"
+    // already says it, and the round's points are in the line above the strip. Matchday Party still
+    // passes an outcome to the same strip.
+    outcome: null,
   }));
 
   if (unavailable) return <CompetitionUnavailable />;
@@ -300,6 +301,11 @@ function ErrorLine({ message }: { message: string }) {
 type CrowdPlayer = { user_id: number; display_name: string; is_me: boolean };
 type Crowd = { home: CrowdPlayer[]; away: CrowdPlayer[]; none: CrowdPlayer[] };
 
+// Names shown per column before "and N more". A competition can have 70 members and most of them
+// on one side: the counts already tell that story, so the names are for spotting a few people,
+// not reading fifty. Same number in the app (matchday_predictions_page.dart).
+const NAMES_SHOWN = 8;
+
 /**
  * Who predicted what on one match - only ever given for a locked round (§8.6). One line of counts,
  * the names behind a tap. Each name goes to that player's predictions, so a surprise on the card
@@ -307,6 +313,25 @@ type Crowd = { home: CrowdPlayer[]; away: CrowdPlayer[]; none: CrowdPlayer[] };
  */
 function CrowdLine({ fixture, crowd, competitionId }: { fixture: MatchdayFixture; crowd: Crowd; competitionId: string }) {
   const [showNames, setShowNames] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+
+  const toggleNames = () => {
+    setShowNames(value => !value);
+    setShowAll(false);
+  };
+
+  // The first NAMES_SHOWN, always including yours - "who else picked what I picked" is the usual
+  // reason to look. Your name takes the last place rather than jumping the alphabet.
+  const visible = (players: CrowdPlayer[]) => {
+    if (showAll || players.length <= NAMES_SHOWN) return players;
+    const first = players.slice(0, NAMES_SHOWN);
+    const me = players.find(player => player.is_me);
+    if (me && !first.includes(me)) first[NAMES_SHOWN - 1] = me;
+    return first;
+  };
+
+  const anyLong = [crowd.home, crowd.away, crowd.none].some(list => list.length > NAMES_SHOWN);
+  const textLink = `${LABEL} text-ink-fade underline decoration-dotted underline-offset-[4px] hover:text-ink`;
 
   // What a prediction on each side scored, once the match is settled - read from the result, the
   // same as the Won / Lost words, never from a points value.
@@ -315,7 +340,10 @@ function CrowdLine({ fixture, crowd, competitionId }: { fixture: MatchdayFixture
     return outcomeWord(team, fixture.result);
   };
 
-  const column = (label: string, team: string | null, players: CrowdPlayer[]) => (
+  const column = (label: string, team: string | null, players: CrowdPlayer[]) => {
+    const shown = visible(players);
+    const hidden = players.length - shown.length;
+    return (
     <div className="min-w-0">
       <p className={`${LABEL} text-ink-fade`}>
         {label}
@@ -325,7 +353,7 @@ function CrowdLine({ fixture, crowd, competitionId }: { fixture: MatchdayFixture
         <p className="mt-1 text-[13px] text-ink-fade">Nobody</p>
       ) : (
         <ul className="mt-1 space-y-0.5">
-          {players.map(player => (
+          {shown.map(player => (
             <li key={player.user_id} className="truncate">
               <Link
                 href={`/game/${competitionId}/table/${player.user_id}`}
@@ -335,16 +363,24 @@ function CrowdLine({ fixture, crowd, competitionId }: { fixture: MatchdayFixture
               </Link>
             </li>
           ))}
+          {hidden > 0 && (
+            <li>
+              <button type="button" onClick={() => setShowAll(true)} className={textLink}>
+                and {hidden} more
+              </button>
+            </li>
+          )}
         </ul>
       )}
     </div>
-  );
+    );
+  };
 
   return (
     <div className="mt-4 border-t border-ink/30 pt-3 text-center">
       <button
         type="button"
-        onClick={() => setShowNames(value => !value)}
+        onClick={toggleNames}
         aria-expanded={showNames}
         className="text-[13px] text-ink hover:text-ink-fade"
       >
@@ -365,6 +401,12 @@ function CrowdLine({ fixture, crowd, competitionId }: { fixture: MatchdayFixture
           {column(fixture.away_team, fixture.away_team_short, crowd.away)}
           {crowd.none.length > 0 && (
             <div className="col-span-2">{column('Not predicted', null, crowd.none)}</div>
+          )}
+          {/* A long list puts the Hide at the top out of sight. */}
+          {anyLong && (
+            <div className="col-span-2 text-center">
+              <button type="button" onClick={toggleNames} className={textLink}>Hide</button>
+            </div>
           )}
         </div>
       )}

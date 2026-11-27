@@ -153,8 +153,6 @@ class _MatchdayTablePageState extends State<MatchdayTablePage> {
                   // The rules of the table, in words, so a tie never becomes an
                   // argument.
                   for (final line in [
-                    if (data.rows.any((r) => r.provisional))
-                      '* Includes the round still being played - it can still move.',
                     '$matchdayScoring. Nothing takes points away, so a total only goes up.',
                     'Level on points? More wins goes ahead, then more predictions made. Still '
                         'level means sharing the place.',
@@ -277,14 +275,7 @@ class _MatchdayTablePageState extends State<MatchdayTablePage> {
                 cell(Text('${row.losses}', style: figure), 26),
                 if (showPredicted) cell(Text('${row.predictions}', style: figure), 84),
                 cell(
-                  Text.rich(TextSpan(children: [
-                    TextSpan(text: '${row.total}', style: CouponTheme.heading(24)),
-                    if (row.provisional)
-                      TextSpan(
-                        text: '*',
-                        style: CouponTheme.heading(24).copyWith(color: CouponTheme.inkFade),
-                      ),
-                  ])),
+                  Text('${row.total}', style: CouponTheme.heading(24)),
                   52,
                 ),
               ],

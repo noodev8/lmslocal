@@ -233,8 +233,9 @@ and these points are decisions, not suggestions:
   matches still unpredicted, a line above it: "3 matches not predicted — they score 0. You can
   come back to them until the lock." Nothing to save: every tap was saved as it was made.
 - **After the lock** the same cards are read-only. Under the teams, one statement:
-  `Nottm Forest won · WON +3`, or `Draw · DREW +1`, or "Liverpool won · not predicted", or
-  "Not predicted · scores 0". Plus the crowd line (§10).
+  `Nottm Forest won`, or `Draw`, or "Liverpool won · not predicted", or "Not predicted · scores
+  0". No `WON +3` / `LOST 0` after the result (removed 2026-11-27): the highlighted choice already
+  says it, and the round's points are in the line above the strip. Plus the crowd line (§10).
 - **Earlier rounds**: "← Round 2" / "Latest round →" at the bottom.
 - An organiser who is not playing (`is_player` false) sees the matches read-only, headed "The
   matches".
@@ -248,8 +249,9 @@ Reference: `lmslocal-web/src/app/game/[id]/table/page.tsx`, and `docs/matchday.m
 - Columns: **Pos**, **Player**, **W**, **D**, **L**, **Predicted** (can drop on a narrow screen),
   **Pts**. The figures that break a tie are shown so nobody argues.
 - **Shared positions are already computed** (1, 2, 2, 4). Show `position` as given.
-- `provisional` → an asterisk after the points, and a footnote: "* Includes the round still being
-  played - it can still move."
+- `provisional` is **not marked in the table**: no asterisk, no footnote. Removed 2026-11-27 — mid-round
+  every player with a settled result carried one, which was noise. Only your own total, in the
+  home screen header, says "Includes this round so far".
 - Header: "After round 3" (`rounds_settled`), "Round 1" while round 1 is the only one and not yet
   settled, "Before round 1" with no round at all, or "Final" when complete. Top right: **`GAME
   LENGTH`** with "6 rounds". It used to say "How it ends"; the owner renamed it.
@@ -297,6 +299,9 @@ Reference: `lmslocal-web/src/app/game/[id]/table/page.tsx`, and `docs/matchday.m
   predicted 2` and a `WHO` toggle. Opened, two columns, one per side, each headed by the team and,
   once settled, its word (`· WON` / `· LOST` / `· DREW`), listing the names; then "Not predicted"
   with the rest. Every member is in exactly one list. Your own name in bold.
+- **A long list is trimmed** (2026-11-27): each column shows 8 names, always including yours (it
+  takes the 8th place, not the top), then `AND 42 MORE`, which opens every column in full. With
+  any column over 8, a second `HIDE` sits under the lists. Web and app use the same 8.
 - **Every name links to that player's page.** Reference:
   `lmslocal-web/src/app/game/[id]/table/[userId]/page.tsx`. Eyebrow `ROUND 1`, the player's name,
   their position and points top right. A ledger: one row per match with "Home v Away" small, the

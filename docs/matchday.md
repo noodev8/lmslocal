@@ -408,7 +408,9 @@ into a Matchday competition.
 ### 8.3 The table
 
 Position, name, total, then wins and predictions made (the tie-breaks, shown so nobody argues).
-A provisional total mid-round is marked as provisional. The footer states the ending ("First to
+A provisional total mid-round is not marked in the table (an asterisk and footnote were removed
+2026-11-27 as noise: mid-round every row carried one); only your own total, on the home screen,
+says "Includes this round so far". The footer states the ending ("First to
 20 points" / "Round 6 of 10") and the tie-break order.
 
 **A big table opens trimmed**: from 30 players, the top 20, then a row of dots and your own row
@@ -451,6 +453,10 @@ latest locked one. Display names only, never emails. Two screens read it:
 
 Every member is listed, including one who predicted nothing, so "not predicted" is a real count
 and not a missing row.
+
+The names are trimmed, the counts never are (2026-11-27): each column shows 8 names, always
+including your own, then "and N more" to open the rest. The largest competition has 70 members,
+and the count line already tells how a match split; the names are for spotting a few people.
 
 Tested 2026-11-22 on Matchday 2027 (283), one player, round 1 locked with 6 of 10 settled: the
 counts and names on the cards, Won / Lost per side, a name through to the player page ("In play"

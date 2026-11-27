@@ -663,22 +663,9 @@ class _MatchCard extends StatelessWidget {
     final fade = CouponTheme.bodyText.copyWith(fontSize: 13, color: CouponTheme.inkFade);
     final resultText = fixture.resultText;
     if (busy) return Text('Saving…', style: fade);
-    if (fixture.settled && fixture.myTeam != null && fixture.myPoints != null) {
-      return Text.rich(
-        TextSpan(children: [
-          if (resultText != null) TextSpan(text: '$resultText  ·  ', style: fade),
-          TextSpan(
-            text: outcomeWord(fixture.myTeam, fixture.result).toUpperCase(),
-            style: CouponTheme.label.copyWith(color: CouponTheme.ink),
-          ),
-          TextSpan(
-            text: ' ${signedPoints(fixture.myPoints!)}',
-            style: CouponTheme.dataText.copyWith(fontSize: 14),
-          ),
-        ]),
-        textAlign: TextAlign.center,
-      );
-    }
+    // Just the result, no "WON +3" / "LOST 0" after it (2026-11-27): the
+    // highlighted choice already says it, and the round's points are in the
+    // line above the strip.
     if (resultText != null) {
       return Text(
         '$resultText${fixture.myTeam == null && isPlayer ? '  ·  not predicted' : ''}',
@@ -773,7 +760,48 @@ class _CrowdLine extends StatefulWidget {
 }
 
 class _CrowdLineState extends State<_CrowdLine> {
+  /// Names shown per column before "and N more". A competition can have 70
+  /// members and most of them on one side: the counts already tell that
+  /// story, so the names are for spotting a few people, not reading fifty.
+  static const _namesShown = 8;
+
   bool _showNames = false;
+  bool _showAll = false;
+
+  /// The first [_namesShown], always including yours - "who else picked what
+  /// I picked" is the usual reason to look. Your name takes the last place
+  /// rather than jumping the alphabet.
+  List<MatchdayPlayer> _visible(List<MatchdayPlayer> players) {
+    if (_showAll || players.length <= _namesShown) return players;
+    final first = players.take(_namesShown).toList();
+    final me = players.where((p) => p.isMe).firstOrNull;
+    if (me != null && !first.contains(me)) first[_namesShown - 1] = me;
+    return first;
+  }
+
+  bool get _anyLong {
+    final c = widget.crowd;
+    return [c.home, c.away, c.none].any((list) => list.length > _namesShown);
+  }
+
+  void _toggleNames() => setState(() {
+        _showNames = !_showNames;
+        _showAll = false;
+      });
+
+  Widget _textLink(String text, VoidCallback onTap) => InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Text(
+            text,
+            style: CouponTheme.label.copyWith(
+              decoration: TextDecoration.underline,
+              decorationStyle: TextDecorationStyle.dotted,
+            ),
+          ),
+        ),
+      );
 
   /// What a prediction on [team] scored, once settled - read from the result,
   /// never from points.
@@ -785,6 +813,8 @@ class _CrowdLineState extends State<_CrowdLine> {
 
   Widget _column(String label, String? team, List<MatchdayPlayer> players) {
     final word = team == null ? null : _sideWord(team);
+    final visible = _visible(players);
+    final hidden = players.length - visible.length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -799,8 +829,8 @@ class _CrowdLineState extends State<_CrowdLine> {
         const SizedBox(height: 4),
         if (players.isEmpty)
           Text('Nobody', style: CouponTheme.bodyText.copyWith(fontSize: 13, color: CouponTheme.inkFade))
-        else
-          for (final player in players)
+        else ...[
+          for (final player in visible)
             InkWell(
               onTap: () => widget.onPlayer(player),
               child: Padding(
@@ -817,6 +847,8 @@ class _CrowdLineState extends State<_CrowdLine> {
                 ),
               ),
             ),
+          if (hidden > 0) _textLink('AND $hidden MORE', () => setState(() => _showAll = true)),
+        ],
       ],
     );
   }
@@ -835,7 +867,7 @@ class _CrowdLineState extends State<_CrowdLine> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           InkWell(
-            onTap: () => setState(() => _showNames = !_showNames),
+            onTap: _toggleNames,
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Text.rich(
@@ -872,6 +904,11 @@ class _CrowdLineState extends State<_CrowdLine> {
             if (crowd.none.isNotEmpty) ...[
               const SizedBox(height: 12),
               _column('Not predicted', null, crowd.none),
+            ],
+            // A long list puts the HIDE at the top out of sight.
+            if (_anyLong) ...[
+              const SizedBox(height: 8),
+              Center(child: _textLink('HIDE', _toggleNames)),
             ],
           ],
         ],

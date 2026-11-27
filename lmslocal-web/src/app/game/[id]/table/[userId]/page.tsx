@@ -92,7 +92,7 @@ export default function MatchdayPlayerPage() {
           {tableRow && (
             <div className="flex-none text-right">
               <p className={`${LABEL} text-ink-fade`}>{ordinal(tableRow.position)} of {table?.table.length}</p>
-              <p className="font-display text-2xl text-ink">{tableRow.total} pts{tableRow.provisional ? '*' : ''}</p>
+              <p className="font-display text-2xl text-ink">{tableRow.total} pts</p>
             </div>
           )}
         </div>
